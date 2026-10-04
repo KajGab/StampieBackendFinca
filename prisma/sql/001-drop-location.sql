@@ -10,7 +10,8 @@
 -- `Organization`. Übernommen wird nichts: es gab nie eine Oberfläche, um eine Filiale
 -- anzulegen, also enthält die Tabelle ausschließlich Seed-Daten.
 --
--- Idempotent: nach dem ersten Durchlauf sind beide Anweisungen wirkungslos.
+-- Idempotent: nach dem ersten Durchlauf sind beide Anweisungen wirkungslos. Auf einer
+-- leeren Datenbank (Erstinstallation, noch keine Tabellen) ebenso.
 
-ALTER TABLE "Card" DROP COLUMN IF EXISTS "locationId";
+ALTER TABLE IF EXISTS "Card" DROP COLUMN IF EXISTS "locationId";
 DROP TABLE IF EXISTS "Location";

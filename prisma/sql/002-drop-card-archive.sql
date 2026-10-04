@@ -21,7 +21,7 @@
 -- deshalb ausgeschrieben da.
 --
 -- Idempotent: nach dem ersten Durchlauf gibt es die Spalte nicht mehr, beide Anweisungen
--- sind dann wirkungslos.
+-- sind dann wirkungslos. Auf einer leeren Datenbank (Erstinstallation) ebenso.
 
 DO $$
 BEGIN
@@ -34,4 +34,4 @@ BEGIN
 END $$;
 
 DROP INDEX IF EXISTS "Card_orgId_archivedAt_idx";
-ALTER TABLE "Card" DROP COLUMN IF EXISTS "archivedAt";
+ALTER TABLE IF EXISTS "Card" DROP COLUMN IF EXISTS "archivedAt";

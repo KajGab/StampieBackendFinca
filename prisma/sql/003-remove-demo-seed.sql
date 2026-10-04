@@ -13,6 +13,12 @@
 -- absichtlich stehen: an ihnen hängt die Anmeldung, solange die Auth noch ein Platzhalter
 -- ist. Wer sie loswerden will, muss vorher echte Konten haben.
 --
--- Idempotent: nach dem ersten Durchlauf trifft die Anweisung nichts mehr.
+-- Idempotent: nach dem ersten Durchlauf trifft die Anweisung nichts mehr. Auf einer leeren
+-- Datenbank (Erstinstallation, noch keine Tabelle "Card") wird sie übersprungen.
 
-DELETE FROM "Card" WHERE "id" = 'ccardcafenord000000000001';
+DO $$
+BEGIN
+  IF to_regclass('"Card"') IS NOT NULL THEN
+    DELETE FROM "Card" WHERE "id" = 'ccardcafenord000000000001';
+  END IF;
+END $$;

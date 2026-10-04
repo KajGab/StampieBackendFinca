@@ -16,12 +16,17 @@
 --                             davon existiert, hat die Karte gelebt und bleibt.
 --
 -- Idempotent: beim zweiten Durchlauf trifft die Anweisung nichts mehr. Die Zahl steht im
--- Deploy-Log, damit nachvollziehbar ist, was verschwunden ist.
+-- Deploy-Log, damit nachvollziehbar ist, was verschwunden ist. Auf einer leeren Datenbank
+-- (Erstinstallation, noch keine Tabellen) wird sie übersprungen.
 
 DO $$
 DECLARE
   entfernt INTEGER;
 BEGIN
+  IF to_regclass('"IssuedPass"') IS NULL THEN
+    RETURN;
+  END IF;
+
   DELETE FROM "IssuedPass" p
   WHERE p."kind" = 'STAMP'
     AND p."isTest" = false

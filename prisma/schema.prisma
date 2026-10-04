@@ -1,0 +1,609 @@
+// Stampie — digital wallet stamp cards.
+// Scope of this schema: everything the card designer needs. Auth/billing tables are
+// stubbed here (Organization/User/Membership) and will be replaced by the real auth
+// schema later; every query in the app goes through assertCardAccess() regardless.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Schema pushes and migrations cannot run through a connection pooler (pgbouncer),
+  // which is what Neon's DATABASE_URL points at. Runtime queries use the pool, DDL uses
+  // the direct connection. Locally both point at the same server.
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// ---------------------------------------------------------------- tenancy (stub)
+
+/// A customer (Firma). Also the unit of tenancy: who owns a card, and therefore who may
+/// stamp it.
+///
+/// There used to be a `Location` model between customer and card, meant for chains with
+/// several branches. Nothing ever created one — there was no form for it, only the seed —
+/// so every self-created customer offered an empty "Filiale" dropdown and no way to fill
+/// it. The master data it held moved here.
+model Organization {
+  /// Ab wie vielen Monaten ohne Besuch ein Kunde in der Statistik als „eingeschlafen“ gilt.
+  inaktivNachMonaten Int @default(2)
+  id   String @id @default(cuid())
+  name String
+
+  // Contact and legal details. All optional so a customer can exist before the agency has
+  // captured them; the card designer offers them as prefills, it never requires them.
+  phone      String?
+  email      String?
+  street     String?
+  postalCode String?
+  city       String?
+  website    String?
+  imprintUrl String?
+  privacyUrl String?
+
+  /// OpeningHours[] — see src/types/customer.ts
+  openingHours Json   @default("[]")
+  /// Prefills the wallet's location trigger: the pass surfaces on the lock screen nearby.
+  latitude     Float?
+  longitude    Float?
+
+  createdAt DateTime     @default(now())
+  members   Membership[]
+  cards     Card[]
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  name               String?
+  // --- App-Login (Betriebs-App). Nullable, weil bestehende/Agentur-Nutzer keins brauchen.
+  ///
+  /// Indiziert, aber bewusst nicht `@unique` — aus demselben Grund wie bei
+  /// `IssuedPass.claimToken`: `prisma db push` verlangt für eine Unique-Constraint
+  /// `--accept-data-loss`, und dieses Flag im Deploy-Kommando würde künftig auch eine
+  /// versehentlich gelöschte Spalte stillschweigend durchwinken.
+  ///
+  /// Eindeutig bleibt der Name trotzdem: `createBusinessLoginAction` leitet die E-Mail
+  /// aus ihm ab (`<username>@login.stampie.local`), und `email` *ist* unique. Ein zweiter
+  /// Nutzer mit demselben Benutzernamen scheitert damit an der Datenbank, nicht erst an
+  /// einer Prüfung im Anwendungscode.
+  username           String?
+  passwordHash       String?
+  /// Beim ersten Login muss das von uns vergebene Start-Passwort geändert werden.
+  mustChangePassword Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  memberships        Membership[]
+  appSessions        AppSession[]
+
+  @@index([username])
+}
+
+/// Anmelde-Token der Betriebs-App. Die App schickt den Token im Authorization-Header.
+model AppSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum Role {
+  OWNER
+  MEMBER
+  AGENCY
+}
+
+model Membership {
+  id     String @id @default(cuid())
+  userId String
+  orgId  String
+  role   Role   @default(MEMBER)
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+// ---------------------------------------------------------------- cards
+
+/// What kind of pass a card issues. Fixed when the card is created — the wallet pass type
+/// (loyalty vs. offer) is baked into every pass already in a customer's wallet, so it
+/// cannot be switched afterwards without invalidating them.
+enum CardKind {
+  STAMP
+  COUPON
+}
+
+/// A stamp card programme. The unit the agency creates, hands to a customer and designs.
+/// A customer may own any number of these; a card without `orgId` is created but not yet
+/// assigned, and therefore cannot be stamped by anyone.
+model Card {
+  id    String        @id @default(cuid())
+  name  String
+  kind  CardKind      @default(STAMP)
+  orgId String?
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  /// Public code behind the NFC tag and the counter QR: `/k/<nfcCode>`. Null until the
+  /// shop asks for one.
+  ///
+  /// Stable on purpose — it is printed on stickers and written onto chips that nobody can
+  /// recall. Switching the hand-out off clears it, and switching it back on mints a new
+  /// one; the dialog says so, because every tag out there stops working at that point.
+  ///
+  /// Indexed rather than `@unique`, same reason as `IssuedPass.claimToken`: uniqueness
+  /// comes from 16 random bytes, not from a constraint that `prisma db push` would only
+  /// add under `--accept-data-loss`.
+  nfcCode String?
+
+  /// Stempel, mit denen eine frisch über den Ausgabe-Link ausgestellte Karte startet,
+  /// statt bei 0 — für eine Anlaufaktion ("1 Stempel geschenkt") oder den Umstieg von
+  /// Papierkarten. Gilt nur für neue Karten, nicht rückwirkend für bereits ausgegebene.
+  ///
+  /// Nicht gegen `stampGoal` gedeckelt: das Ziel kann sich ändern, nachdem die Karte
+  /// längst läuft, daher passiert das Deckeln erst beim tatsächlichen Ausstellen.
+  handoutStartStamps Int @default(0)
+
+  /// Begrüßung auf der Ausgabeseite, dort wo der Kunde vor dem Hinzufügen landet.
+  ///
+  /// Gehört zur Karte und nicht zum Design: das Design beschreibt den Pass im Wallet und
+  /// wird versioniert veröffentlicht, dieser Text steht nur auf einer Webseite und soll
+  /// sich ändern lassen, ohne dafür eine neue Version auszurollen.
+  handoutGreeting String?
+
+  /// Die zuletzt versendete Nachricht, wie sie auf der Karte steht.
+  ///
+  /// Liegt hier und nicht nur in `CardMessage`, weil der Pass bei *jedem* Abruf neu
+  /// gebaut wird: das Feld muss ohne Suche nach dem jüngsten Versand lesbar sein.
+  /// Apple zeigt eine Benachrichtigung nur, wenn sich der Feldwert ändert — deshalb ist
+  /// genau dieser Wert die Wahrheit darüber, was das Telefon schon gesehen hat.
+  activeMessage   String?
+  activeMessageAt DateTime?
+
+  /// Kein Archiv-Feld: eine Karte existiert oder sie ist gelöscht. Löschen räumt über die
+  /// Fremdschlüssel auch Designs, Bilder, Pässe und deren Historie ab — siehe
+  /// `prisma/sql/002-drop-card-archive.sql`.
+  createdAt DateTime @default(now())
+  createdBy String
+
+  designs  CardDesign[]
+  versions CardDesignVersion[]
+  passes   IssuedPass[]
+  events   StampEvent[]
+  tokens   TestCardToken[]
+  assets   Asset[]
+
+  messages  CardMessage[]
+  reminders CardReminder[]
+
+  @@index([orgId])
+  @@index([nfcCode])
+}
+
+/// Eine Nachricht an alle, die diese Karte im Wallet haben.
+///
+/// Beide Wallets können das von Haus aus, auf verschiedenen Wegen: Apple zeigt eine
+/// Meldung, wenn sich ein Feld mit `changeMessage` ändert, Google hat dafür einen
+/// eigenen Endpunkt. Ein zusätzlicher Push-Dienst wird also nicht gebraucht.
+model CardMessage {
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  /// Nur Google zeigt eine Überschrift. Bei Apple ist der Text alles, was ankommt.
+  headline String?
+  /// Apple kappt die Meldung bei 150 Zeichen, deshalb ist das auch hier die Grenze.
+  body     String
+
+  /// An wen sie geht — `MessageSegment`, siehe src/lib/cards/message-segments.ts.
+  ///
+  /// Als String und nicht als Enum: die Gruppen sind eine Produktentscheidung ("noch zwei
+  /// Stempel"), keine Datenbankwahrheit. Eine neue Gruppe soll eine Zeile Anwendungscode
+  /// sein und keine Migration, und eine Zeile, deren Gruppe es nicht mehr gibt, muss
+  /// lesbar bleiben statt beim Laden zu scheitern.
+  segment String @default("ALL")
+
+  /// Wie viele Karten die Gruppe beim Versand umfasste. Ohne diese Zahl ist im Nachhinein
+  /// nicht mehr feststellbar, wen eine Nachricht erreicht hat — die Stempelstände von
+  /// damals sind längst weitergezählt.
+  recipients Int @default(0)
+
+  /// Wann sie raus soll. Vergangenheit heißt "beim nächsten Lauf".
+  scheduledFor DateTime
+  sentAt       DateTime?
+
+  /// Was der Versand erreicht hat — sichtbar in der Oberfläche, damit ein stiller
+  /// Fehlschlag nicht wie ein erfolgreicher Versand aussieht.
+  appleDevices Int     @default(0)
+  googleSynced Boolean @default(false)
+  error        String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+
+  /// Der Lauf sucht genau danach: fällig und noch nicht raus.
+  @@index([sentAt, scheduledFor])
+  @@index([cardId, createdAt])
+}
+
+/// Wiederkehrende Inaktivitäts-Erinnerung — pro Kunde, nicht an alle.
+///
+/// Steht z. B. auf 20 Tage, geht die Nachricht *nur* an Kunden dieser Karte, die seit 20
+/// Tagen nicht mehr da waren (kein Stempel), und danach alle 20 Tage erneut, solange sie
+/// wegbleiben. Kommt ein Kunde wieder (neuer Stempel), startet sein Zähler von vorn.
+///
+/// „Zuletzt da" wird aus der Stempel-Historie (`StampEvent`) gelesen — der Stempel-Code
+/// selbst bleibt unangetastet. „Zuletzt erinnert" steht pro Kunde in `CardReminderDelivery`.
+/// Der Versand nutzt denselben Einzel-Pass-Weg wie die Gruppen-Nachrichten
+/// (`IssuedPass.activeMessage` + Push/Google an einzelne Pässe).
+///
+/// Wie *oft* geprüft wird, hängt daran, wie oft der Cron-Endpunkt aufgerufen wird.
+model CardReminder {
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  /// Nur Google zeigt eine Überschrift; bei Apple ist der Text alles.
+  headline String?
+  /// Apple kappt bei 150 Zeichen — dieselbe Grenze wie bei CardMessage.
+  body     String
+  /// Inaktivitäts-Schwelle in **Minuten**: „so lange nicht da". Reale Werte (20 Tage =
+  /// 28800) wie Testwerte (5 Minuten, 1 Stunde = 60). Die App rechnet Minuten/Stunden/Tage um.
+  intervalMinutes Int
+
+  /// Aus lässt die Erinnerung liegen, ohne sie zu löschen.
+  enabled Boolean @default(true)
+
+  /// Nur Buchhaltung: wann der Lauf sie zuletzt geprüft/verschickt hat und wie viele
+  /// Einzel-Sendungen insgesamt rausgingen. (`nextSendAt` bleibt aus Kompatibilität, wird
+  /// vom Pro-Kunde-Lauf aber nicht mehr als globale Fälligkeit gebraucht.)
+  nextSendAt DateTime
+  lastSentAt DateTime?
+  sentCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  createdBy String
+
+  deliveries CardReminderDelivery[]
+
+  @@index([enabled])
+  @@index([cardId])
+}
+
+/// Ein Versand einer Erinnerung an *einen* Kunden (Pass). Merkt sich, wann dieser Kunde
+/// zuletzt erinnert wurde, damit er nicht öfter als alle `intervalMinutes` angeschrieben
+/// wird — und damit ein neuer Besuch den Zähler sauber zurücksetzt.
+model CardReminderDelivery {
+  id         String       @id @default(cuid())
+  reminderId String
+  reminder   CardReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  passId     String
+  pass       IssuedPass   @relation(fields: [passId], references: [id], onDelete: Cascade)
+
+  sentAt DateTime @default(now())
+  /// Wie oft dieser Kunde von dieser Erinnerung schon angeschrieben wurde — treibt die
+  /// unsichtbare Apple-Variation, damit iOS jede Runde eine Meldung zeigt.
+  count  Int      @default(1)
+
+  @@unique([reminderId, passId])
+  @@index([reminderId, sentAt])
+  @@index([passId])
+}
+
+// ---------------------------------------------------------------- assets
+
+enum AssetKind {
+  LOGO
+  /// Square variant for Google Wallet's programLogo, which is cropped to a circle.
+  SQUARE_LOGO
+  ICON
+  HERO
+  STAMP_ICON
+}
+
+model Asset {
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  kind       AssetKind
+  mimeType   String // always image/png after re-encode
+  width      Int
+  height     Int
+  bytes      Int
+  /// Base storage key; variants live at `${storageKey}@1x.png`, `@2x`, `@3x`.
+  storageKey String
+  createdAt  DateTime  @default(now())
+
+  @@index([cardId, kind])
+}
+
+/// Asset bytes stored in the database.
+///
+/// Serverless platforms have no writable filesystem, and an S3 bucket is one more thing
+/// to provision for a deployment that stores a handful of logos. Keeping the bytes next
+/// to the rows that reference them removes the dependency entirely; swap `STORAGE_DRIVER`
+/// to `s3` once volume justifies it.
+model AssetBlob {
+  /// Full storage key including the variant suffix, e.g. `cards/x/logo/y@2x.png`.
+  key         String   @id
+  data        Bytes
+  contentType String   @default("image/png")
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------- card design
+
+enum DesignStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model CardDesign {
+  id      String       @id @default(cuid())
+  cardId  String
+  card    Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  status  DesignStatus @default(DRAFT)
+  version Int          @default(1)
+
+  // --- branding
+  backgroundColor   String  @default("#1a1a1a")
+  foregroundColor   String  @default("#ffffff")
+  labelColor        String  @default("#cccccc")
+  logoAssetId       String?
+  squareLogoAssetId String?
+  iconAssetId       String?
+  heroAssetId       String?
+
+  // --- stamp program
+  stampGoal        Int     @default(10)
+  stampIcon        String  @default("coffee")
+  stampIconAssetId String?
+  emptyStampStyle  String  @default("outline")
+  rewardText       String  @default("")
+
+  // --- texts
+  programName       String  @default("")
+  cardTitle         String?
+  /// Overrides the organisation name as the pass issuer. Null = use the organisation's.
+  issuerDisplayName String?
+  stampLabel        String  @default("Stempel")
+  /// BackField[] — discriminated union, see src/types/card-design.ts
+  backFields        Json    @default("[]")
+
+  // --- coupon fields. Used twice: as the card itself when Card.kind is COUPON, and as
+  //     the reward a full stamp card hands out when rewardCouponEnabled is set.
+  /// STAMP only: a full card issues a coupon pass instead of just a line of reward text.
+  rewardCouponEnabled Boolean @default(false)
+  /// Google OfferClass.title — required for a coupon, e.g. "20 % auf alles".
+  offerTitle          String?
+  offerDetails        String?
+  offerFinePrint      String?
+  /// Google OfferClass.redemptionChannel: INSTORE | ONLINE | BOTH
+  redemptionChannel   String  @default("INSTORE")
+
+  // --- Google Wallet optional labels
+  accountNameLabel String?
+  accountIdLabel   String?
+  rewardsTierLabel String?
+  rewardsTier      String?
+
+  // --- Google Wallet optional features (disabled by default)
+  googleAccountNameEnabled Boolean @default(false)
+  googleRewardsTierEnabled Boolean @default(false)
+
+  // --- advanced
+  barcodeFormat String    @default("QR")
+  /// Hauptschalter für die Standort-Benachrichtigung. Aus heißt: die Standorte bleiben
+  /// stehen, wandern aber in keinen Pass — sonst wäre Abschalten dasselbe wie Löschen und
+  /// jedes erneute Einschalten müsste alle Koordinaten neu eintippen.
+  ///
+  /// Standard `true`, damit bestehende Karten, die Standorte hinterlegt haben, nach dem
+  /// Hinzufügen der Spalte weiterhin benachrichtigen. Ohne Standort tut die Einstellung
+  /// ohnehin nichts.
+  geoNotificationsEnabled Boolean @default(true)
+  /// GeoLocation[] — max. 10 entries (PassKit limit)
+  geoLocations  Json      @default("[]")
+  expiresAt     DateTime?
+  shareable     Boolean   @default(true)
+
+  // --- audit for the "publish despite contrast < 3:1" override
+  contrastOverrideBy String?
+  contrastOverrideAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions CardDesignVersion[]
+
+  // Exactly one DRAFT and one PUBLISHED row per card. The draft is what the editor
+  // writes to; the published row is what issued passes render from.
+  @@unique([cardId, status])
+  @@index([cardId, status])
+}
+
+model CardDesignVersion {
+  id       String     @id @default(cuid())
+  designId String
+  design   CardDesign @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  /// Denormalised so version queries can filter by card without a join.
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  version     Int
+  /// Full, schema-valid CardDesignInput snapshot.
+  snapshot    Json
+  publishedAt DateTime @default(now())
+  publishedBy String
+  note        String?
+
+  @@unique([designId, version])
+  @@index([cardId, publishedAt])
+}
+
+// ---------------------------------------------------------------- issued passes
+
+model IssuedPass {
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  serial        String  @unique
+  isTest        Boolean @default(false)
+  stamps        Int     @default(0)
+  designVersion Int
+
+  /// Which pass this row is. A STAMP card also issues COUPON passes as its reward, so the
+  /// kind belongs to the pass, not only to the card it hangs off.
+  kind CardKind @default(STAMP)
+
+  /// COUPON only: single-use secret that lets the customer add this exact pass to their
+  /// wallet. The serial cannot serve that purpose — it is printed on the pass and shown at
+  /// the till, so anyone who saw one could mint themselves a copy.
+  ///
+  /// Indexed but deliberately not `@unique`: `prisma db push` refuses to add a unique
+  /// constraint without `--accept-data-loss`, and arming that flag in the deploy command
+  /// would wave through every future destructive change as well. Uniqueness comes from the
+  /// value instead — 32 random bytes, so a collision is not a case worth designing for.
+  claimToken String?
+
+  /// Which phone this pass was handed to, from a cookie set on the first NFC tap.
+  ///
+  /// Exists so a second tap returns the card the customer already has instead of a fresh
+  /// one with zero stamps. It is a random id, tied to nothing but the browser that got it:
+  /// no phone number, no account, nothing that identifies a person. A wiped browser or a
+  /// new phone therefore starts over, which is the price of not asking for a login.
+  deviceKey String?
+
+  /// Stamp goal at issue time — the card keeps its own goal even if the design changes.
+  stampGoal    Int       @default(10)
+  /// Set when a full card was cashed in; the counter restarts from zero.
+  lastRewardAt DateTime?
+
+  /// Nachricht nur für diesen Pass, gesetzt beim Versand an eine Gruppe.
+  ///
+  /// Apple kennt keinen freien Push: eine Meldung entsteht, weil sich ein Feld ändert.
+  /// Solange die Nachricht an der Karte hing, konnte sie deshalb nur alle erreichen. Steht
+  /// sie hier, bekommt sie genau der, dessen Stempelstand gemeint war.
+  ///
+  /// Vorrang vor `Card.activeMessage`; ein Versand an alle räumt diese Felder wieder ab,
+  /// damit nicht eine alte Gruppennachricht die neue an alle überdeckt.
+  activeMessage   String?
+  activeMessageAt DateTime?
+
+  /// Einwilligung in Werbenachrichten, gesetzt beim Ausgeben der Karte.
+  /// Null heißt: keine. Nachrichten und Erinnerungen filtern darauf.
+  marketingConsentAt DateTime?
+  /// Wortlaut, dem zugestimmt wurde — Art. 7 Abs. 1 verlangt den Nachweis,
+  /// und der ist ohne die Fassung des Textes keiner.
+  marketingConsentText String?
+
+  /// Einwilligung in die Wiedererkennung dieses Geraets (§ 25 TDDDG).
+  /// Ohne sie wird `deviceKey` je Ausgabe neu gewuerfelt und niemand wiedererkannt.
+  recognitionConsentAt DateTime?
+  recognitionConsentText String?
+
+  rewardCount  Int       @default(0)
+
+  /// COUPON only: a coupon is single-use, so this is the hard latch against a second
+  /// redemption. Null means unredeemed. Stamp cards never set it — they restart instead.
+  redeemedAt DateTime?
+
+  /// Secret Apple's PassKit web service checks on every call for this pass — the
+  /// `Authorization: ApplePass <token>` header the device sends back. Generated once, on
+  /// first build, and baked into that build's `authenticationToken` field; a pass built
+  /// before this feature existed simply has none and is never registered for push.
+  appleAuthToken String?
+
+  /// Bumped on every write. The tag a device hands back as `passesUpdatedSince` — "give me
+  /// what changed after this" — is this value, so it has to move on every stamp, not just
+  /// on demand.
+  ///
+  /// `@default(now())` as well as `@updatedAt`: without a default, adding the column to a
+  /// table that already holds passes is a change Postgres cannot make, and the deploy
+  /// stops. Existing rows start at the moment of the migration, which is harmless — no
+  /// device is registered for them yet.
+  updatedAt DateTime @default(now()) @updatedAt
+
+  createdAt DateTime @default(now())
+
+  events             StampEvent[]
+  appleRegistrations AppleDeviceRegistration[]
+  reminderDeliveries CardReminderDelivery[]
+
+  @@index([cardId, isTest])
+  @@index([claimToken])
+  @@index([cardId, deviceKey])
+}
+
+/// One row per (device, pass): what Apple's Wallet app asked us to remember when the
+/// customer added the pass, so a later push knows which phones to wake.
+///
+/// Deliberately not `@unique` on `pushToken` alone — the identifying pair PassKit itself
+/// uses is device + pass, and treating the token as globally unique would break the
+/// (rare, real) case of the same device token appearing again after an app reinstall.
+model AppleDeviceRegistration {
+  id                      String     @id @default(cuid())
+  deviceLibraryIdentifier String
+  passId                  String
+  pass                    IssuedPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  pushToken               String
+  createdAt               DateTime   @default(now())
+
+  @@unique([deviceLibraryIdentifier, passId])
+  @@index([passId])
+}
+
+enum StampEventKind {
+  STAMP
+  REDEEM
+}
+
+/// Audit trail. Every stamp is attributable — who booked it, on which card, when.
+/// Without this a disputed stamp is unresolvable, and a dishonest employee is invisible.
+model StampEvent {
+  id     String     @id @default(cuid())
+  passId String
+  pass   IssuedPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  kind      StampEventKind @default(STAMP)
+  /// +1 for a stamp, negative for a redemption.
+  delta     Int            @default(1)
+  /// Counter after this event, so history reads without replaying everything.
+  balance   Int
+  stampedBy String
+  createdAt DateTime       @default(now())
+
+  @@index([passId, createdAt])
+  @@index([cardId, createdAt])
+}
+
+// ---------------------------------------------------------------- test cards
+
+model TestCardToken {
+  id       String @id @default(cuid())
+  /// 32 random bytes, base64url. Public — the QR code has to work on a foreign phone.
+  token    String @unique
+  cardId   String
+  card     Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  designId String
+
+  /// Design snapshot at click time, so a DRAFT can be test-driven without publishing.
+  snapshot  Json
+  expiresAt DateTime
+  usedCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([cardId])
+}

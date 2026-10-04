@@ -1,0 +1,26 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+/storage/
+
+.pglite/
+
+# Apple Wallet signing material — private key, CSR, .p12.
+apple-certs/
+*.p12
+*.cer
+
+.vercel
+
+# Local dev helper scripts + first-run marker — not part of the shared project.
+*.bat
+.db-initialized
+
+# PGlite-Datenverzeichnisse, inklusive Backups davon.
+.pglite*/

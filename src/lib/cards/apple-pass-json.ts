@@ -1,0 +1,323 @@
+import { toPassKitRgb } from '@/lib/color/convert'
+import { resolveIssuerName } from './issuer'
+import {
+  activeGeoLocations,
+  MAX_AUXILIARY_FIELDS,
+  MAX_HEADER_FIELDS,
+  MAX_SECONDARY_FIELDS,
+  type BarcodeFormat,
+  type CardDesignInput,
+  type CardKind,
+} from './schema'
+
+/**
+ * CardDesign -> pass.json for a `storeCard`.
+ *
+ * Field-area budget (PassKit, storeCard):
+ *   headerFields     max 3, very narrow  -> stamp counter "6/10"
+ *   primaryFields    1, sits behind the strip -> intentionally left empty
+ *   secondaryFields  max 4               -> reward, program name
+ *   auxiliaryFields  max 4               -> customer name, member since
+ *   backFields       unlimited           -> address, hours, contact, legal
+ */
+
+export interface PassField {
+  key: string
+  label?: string
+  value: string
+  textAlignment?: 'PKTextAlignmentLeft' | 'PKTextAlignmentCenter' | 'PKTextAlignmentRight' | 'PKTextAlignmentNatural'
+  attributedValue?: string
+  /**
+   * What iOS shows on the lock screen when this field's value changes. Must contain `%@`,
+   * which is replaced by the new value — without it the pass updates silently, which is
+   * the whole difference between a message arriving and not arriving.
+   */
+  changeMessage?: string
+}
+
+export interface PassBarcode {
+  format: 'PKBarcodeFormatQR' | 'PKBarcodeFormatCode128' | 'PKBarcodeFormatPDF417' | 'PKBarcodeFormatAztec'
+  message: string
+  /** Apple requires iso-8859-1 here. */
+  messageEncoding: 'iso-8859-1'
+  altText?: string
+}
+
+export interface PassLocation {
+  latitude: number
+  longitude: number
+  relevantText?: string
+  maxDistance?: number
+}
+
+/** Same shape for both styles we emit — only the key it sits under differs. */
+export interface StoreCardStructure {
+  headerFields: PassField[]
+  primaryFields: PassField[]
+  secondaryFields: PassField[]
+  auxiliaryFields: PassField[]
+  backFields: PassField[]
+}
+
+export interface PassJson {
+  formatVersion: 1
+  passTypeIdentifier: string
+  teamIdentifier: string
+  organizationName: string
+  serialNumber: string
+  description: string
+  backgroundColor: string
+  foregroundColor: string
+  labelColor: string
+  barcode: PassBarcode
+  barcodes: PassBarcode[]
+  /**
+   * Exactly one of these is set — the key *is* the pass style, and Wallet picks the layout
+   * from it. `storeCard` puts the strip image behind the primary field, which is what a
+   * stamp row needs; `coupon` is the style Apple intends for a single-use offer.
+   */
+  storeCard?: StoreCardStructure
+  coupon?: StoreCardStructure
+  locations?: PassLocation[]
+  maxDistance?: number
+  expirationDate?: string
+  sharingProhibited?: boolean
+  logoText?: string
+  /**
+   * Both present or both absent — Wallet only asks the web service for updates when it has
+   * somewhere to ask and a token to prove it is allowed to.
+   */
+  webServiceURL?: string
+  authenticationToken?: string
+}
+
+const BARCODE_MAP: Record<BarcodeFormat, PassBarcode['format']> = {
+  QR: 'PKBarcodeFormatQR',
+  CODE128: 'PKBarcodeFormatCode128',
+  PDF417: 'PKBarcodeFormatPDF417',
+  AZTEC: 'PKBarcodeFormatAztec',
+}
+
+export function toPassKitBarcodeFormat(format: BarcodeFormat): PassBarcode['format'] {
+  return BARCODE_MAP[format]
+}
+
+export interface BuildPassJsonContext {
+  serial: string
+  currentStamps: number
+  organizationName: string
+  passTypeIdentifier: string
+  teamIdentifier: string
+  /** Payload behind the barcode — the stamping URL. */
+  barcodeMessage: string
+  /**
+   * Hat der Kunde in Werbenachrichten eingewilligt?
+   *
+   * Steuert nur ein Feld auf der Rückseite: den Widerruf. Der Widerruf muss so einfach
+   * sein wie die Zustimmung, und die war ein Fingertipp — eine Kartennummer abtippen ist
+   * das nicht. Wer nie zugestimmt hat, sieht das Feld nicht; sonst böte man an, etwas
+   * abzubestellen, das gar nicht läuft.
+   */
+  marketingConsent?: boolean
+  customerName?: string | null
+  memberSince?: Date | null
+  /** Defaults to the stamp card so existing callers keep their behaviour. */
+  kind?: CardKind
+  /**
+   * The shop's current message to pass holders, or null.
+   *
+   * Apple has no channel for free-form pushes — a notification exists only as the side
+   * effect of a *field* changing. So the message is a field, and the notification follows
+   * from writing a new value into it.
+   */
+  message?: string | null
+  /**
+   * The PassKit web service, so an installed pass can be pushed a fresh stamp count
+   * instead of sitting stale until the customer deletes and re-adds it. Omitted entirely
+   * when either half is missing — a `webServiceURL` with no token would let anyone who
+   * finds the URL ask for updates without proving which pass they hold.
+   */
+  webService?: { url: string; authenticationToken: string } | null
+}
+
+/**
+ * Builds the pass.json body. Signing, manifest and bundling are the PassBuilder's job.
+ * Every array is hard-capped here as well as in the Zod schema — the editor should never
+ * produce an over-long list, but a malformed pass is silently rejected by Wallet and that
+ * is a terrible way to find out.
+ */
+export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext): PassJson {
+  const kind: CardKind = ctx.kind ?? 'STAMP'
+  const isCoupon = kind === 'COUPON'
+  const stamps = Math.max(0, Math.min(design.stampGoal, ctx.currentStamps))
+
+  // A coupon has no counter, so its header stays empty rather than showing "0/10".
+  const headerFields: PassField[] = isCoupon
+    ? []
+    : (
+        [
+          {
+            key: 'stamps',
+            label: design.stampLabel,
+            value: `${stamps}/${design.stampGoal}`,
+            textAlignment: 'PKTextAlignmentRight',
+          },
+        ] satisfies PassField[]
+      ).slice(0, MAX_HEADER_FIELDS)
+
+  // The offer itself belongs in primaryFields — on a coupon that is the line Wallet sets
+  // in the largest type. A storeCard hides primaryFields behind the strip, so it stays
+  // empty there and the stamp grid keeps the space.
+  const primaryFields: PassField[] =
+    isCoupon && design.offerTitle?.trim()
+      ? [{ key: 'offer', value: design.offerTitle.trim() }]
+      : []
+
+  const secondaryFields: PassField[] = []
+  if (isCoupon) {
+    if (design.offerDetails?.trim()) {
+      secondaryFields.push({ key: 'details', value: design.offerDetails.trim() })
+    }
+  } else {
+    if (design.rewardText.trim()) {
+      secondaryFields.push({ key: 'reward', label: 'Belohnung', value: design.rewardText.trim() })
+    }
+    if (design.programName.trim()) {
+      secondaryFields.push({ key: 'program', label: 'Programm', value: design.programName.trim() })
+    }
+  }
+
+  const auxiliaryFields: PassField[] = []
+  if (ctx.customerName) {
+    auxiliaryFields.push({ key: 'customer', label: 'Kunde', value: ctx.customerName })
+  }
+  if (ctx.memberSince && !isCoupon) {
+    auxiliaryFields.push({
+      key: 'member-since',
+      label: 'Mitglied seit',
+      value: formatGermanDate(ctx.memberSince),
+    })
+  }
+
+  const backFields: PassField[] = design.backFields.map((f) => ({
+    key: f.id,
+    label: f.label,
+    value: f.value,
+  }))
+
+  /*
+   * Die Datenschutzinformation zur Karte — auf jedem Pass, nicht nur bei Einwilligung.
+   *
+   * Nicht zu verwechseln mit dem Datenschutz-Feld des Betriebs darüber: dessen Erklärung
+   * deckt sein Geschäft ab und weiß von der Stempelkarte nichts. Was die Karte speichert,
+   * steht nur hier.
+   *
+   * Die Adresse hängt an der Seriennummer statt am Ausgabe-Code: den Code hat der Kunde
+   * nie gesehen, der steht auf dem Aufsteller im Laden.
+   */
+  backFields.push({
+    key: 'card-privacy',
+    label: 'Datenschutz zur Karte',
+    value: `${ctx.barcodeMessage}/datenschutz`,
+    attributedValue: `<a href="${ctx.barcodeMessage}/datenschutz">Was diese Karte speichert</a>`,
+  })
+
+  // Ganz unten, wo auch Impressum und Datenschutz stehen. `attributedValue` macht daraus
+  // in Wallet einen Link; `value` bleibt als Klartext für alles, was das nicht darstellt.
+  if (ctx.marketingConsent) {
+    backFields.push({
+      key: 'marketing-opt-out',
+      label: 'Nachrichten',
+      value: ctx.barcodeMessage,
+      attributedValue: `<a href="${ctx.barcodeMessage}">Keine Nachrichten mehr erhalten</a>`,
+    })
+  }
+
+  // Fine print is a legal term of the offer — it goes on the back, above the shop's own
+  // fields, because that is where a customer looks for the conditions.
+  if (isCoupon && design.offerFinePrint?.trim()) {
+    backFields.unshift({
+      key: 'fine-print',
+      label: 'Einlösebedingungen',
+      value: design.offerFinePrint.trim(),
+    })
+  }
+
+  // Sits first on the back so the newest message is the first thing an opened pass shows.
+  if (ctx.message?.trim()) {
+    backFields.unshift({
+      key: 'message',
+      label: 'Neuigkeit',
+      value: ctx.message.trim(),
+      changeMessage: '%@',
+    })
+  }
+
+  const barcode: PassBarcode = {
+    format: toPassKitBarcodeFormat(design.barcodeFormat),
+    message: ctx.barcodeMessage,
+    messageEncoding: 'iso-8859-1',
+    altText: ctx.serial,
+  }
+
+  const structure: StoreCardStructure = {
+    headerFields,
+    primaryFields,
+    secondaryFields: secondaryFields.slice(0, MAX_SECONDARY_FIELDS),
+    auxiliaryFields: auxiliaryFields.slice(0, MAX_AUXILIARY_FIELDS),
+    backFields,
+  }
+
+  const fallbackDescription = isCoupon ? 'Gutschein' : 'Stempelkarte'
+
+  const pass: PassJson = {
+    formatVersion: 1,
+    passTypeIdentifier: ctx.passTypeIdentifier,
+    teamIdentifier: ctx.teamIdentifier,
+    // Apple shows this on lock-screen notifications, so it follows the same override.
+    organizationName: resolveIssuerName(design, ctx.organizationName),
+    serialNumber: ctx.serial,
+    description:
+      (isCoupon ? design.offerTitle?.trim() : design.programName.trim()) || fallbackDescription,
+    backgroundColor: toPassKitRgb(design.backgroundColor),
+    foregroundColor: toPassKitRgb(design.foregroundColor),
+    labelColor: toPassKitRgb(design.labelColor),
+    barcode,
+    barcodes: [barcode],
+    // The style key decides the layout, so exactly one of the two is ever present.
+    ...(isCoupon ? { coupon: structure } : { storeCard: structure }),
+  }
+
+  if (design.cardTitle?.trim()) {
+    pass.logoText = design.cardTitle.trim()
+  }
+
+  const locations = activeGeoLocations(design)
+  if (locations.length > 0) {
+    pass.locations = locations.map((l) => ({
+      latitude: l.latitude,
+      longitude: l.longitude,
+      relevantText: l.relevantText || undefined,
+      maxDistance: l.maxDistance,
+    }))
+  }
+
+  if (design.expiresAt) {
+    pass.expirationDate = design.expiresAt.toISOString()
+  }
+
+  if (!design.shareable) {
+    pass.sharingProhibited = true
+  }
+
+  if (ctx.webService) {
+    pass.webServiceURL = ctx.webService.url
+    pass.authenticationToken = ctx.webService.authenticationToken
+  }
+
+  return pass
+}
+
+function formatGermanDate(d: Date): string {
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+}

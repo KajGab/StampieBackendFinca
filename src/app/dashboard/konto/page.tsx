@@ -33,7 +33,7 @@ export default async function KontoPage() {
                   Karten
                 </Link>
                 <Link href="/dashboard/kunden" className="text-ink-3 transition-colors hover:text-ink">
-                  Kunden
+                  Betriebe
                 </Link>
               </nav>
             )}

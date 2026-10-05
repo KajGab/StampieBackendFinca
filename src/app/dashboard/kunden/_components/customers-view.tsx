@@ -36,7 +36,7 @@ export function CustomersView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[17px] font-semibold text-ink">Kunden</h1>
+          <h1 className="text-[17px] font-semibold text-ink">Betriebe</h1>
           <p className="text-[13px] text-ink-3">
             {customers.length === 0
               ? 'Noch kein Kunde angelegt.'

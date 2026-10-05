@@ -37,7 +37,7 @@ export default async function KartenPage() {
                 Karten
               </Link>
               <Link href="/dashboard/kunden" className="text-ink-3 transition-colors hover:text-ink">
-                Kunden
+                Betriebe
               </Link>
               <Link href="/dashboard/auskunft" className="text-ink-3 transition-colors hover:text-ink">
                 Auskunft

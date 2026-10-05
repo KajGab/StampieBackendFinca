@@ -29,9 +29,6 @@ export default async function KontoPage() {
                 would just bounce back here. */}
             {forced ? null : (
               <nav className="flex items-center gap-4 text-[13px]">
-                <Link href="/dashboard/karten" className="text-ink-3 transition-colors hover:text-ink">
-                  Karten
-                </Link>
                 <Link href="/dashboard/kunden" className="text-ink-3 transition-colors hover:text-ink">
                   Betriebe
                 </Link>

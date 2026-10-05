@@ -63,10 +63,14 @@ export function CardEditorShell({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2">
               <Link
-                href="/dashboard/karten"
+                href={
+                  customer.id
+                    ? `/dashboard/karten?betrieb=${encodeURIComponent(customer.id)}`
+                    : '/dashboard/kunden'
+                }
                 className="shrink-0 rounded-md p-1 text-ink-3 hover:bg-surface-2 hover:text-ink"
-                aria-label="Zurück zur Kartenübersicht"
-                title="Zurück zur Kartenübersicht"
+                aria-label={customer.id ? `Zurück zu ${customer.name}` : 'Zurück zu den Betrieben'}
+                title={customer.id ? `Zurück zu ${customer.name}` : 'Zurück zu den Betrieben'}
               >
                 <ArrowLeft className="size-4" />
               </Link>

@@ -43,7 +43,7 @@ export function PasswordForm({ forced }: { forced: boolean }) {
       // A forced change had nowhere to go until now; the change also swapped the session
       // cookie, so reload rather than soft-navigate.
       if (forced) {
-        window.location.assign('/dashboard/karten')
+        window.location.assign('/dashboard/kunden')
         return
       }
 

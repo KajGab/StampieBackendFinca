@@ -20,7 +20,7 @@ export default async function LoginPage({
 
   // Only ever bounce back into the dashboard: an attacker-supplied `next` must not turn
   // the login into an open redirect.
-  const target = next && /^\/dashboard(\/|$)/.test(next) ? next : '/dashboard/karten'
+  const target = next && /^\/dashboard(\/|$)/.test(next) ? next : '/dashboard/kunden'
 
   if (session) redirect(target)
 

@@ -28,9 +28,6 @@ export default async function KundenPage() {
           <div className="flex items-center gap-5">
             <span className="text-[14px] font-semibold text-ink">Stemply</span>
             <nav className="flex items-center gap-4 text-[13px]">
-              <Link href="/dashboard/karten" className="text-ink-3 transition-colors hover:text-ink">
-                Karten
-              </Link>
               <Link href="/dashboard/kunden" className="font-medium text-ink">
                 Betriebe
               </Link>

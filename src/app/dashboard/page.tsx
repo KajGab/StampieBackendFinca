@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-/** The dashboard root is the card overview. */
+/** The dashboard root is the list of businesses; cards live under their business. */
 export default function DashboardPage() {
-  redirect('/dashboard/karten')
+  redirect('/dashboard/kunden')
 }

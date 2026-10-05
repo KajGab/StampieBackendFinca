@@ -46,16 +46,8 @@ export default async function KartenPage({
           <div className="flex items-center gap-5">
             <span className="text-[14px] font-semibold text-ink">Stampie</span>
             <nav className="flex items-center gap-4 text-[13px]">
-              <Link
-                href="/dashboard/karten"
-                className={betrieb ? 'text-ink-3 transition-colors hover:text-ink' : 'font-medium text-ink'}
-              >
-                Karten
-              </Link>
-              <Link
-                href="/dashboard/kunden"
-                className={betrieb ? 'font-medium text-ink' : 'text-ink-3 transition-colors hover:text-ink'}
-              >
+              {/* Karten gibt es nur noch unter ihrem Betrieb — diese Seite ist dessen Ansicht. */}
+              <Link href="/dashboard/kunden" className="font-medium text-ink">
                 Betriebe
               </Link>
               <Link href="/dashboard/auskunft" className="text-ink-3 transition-colors hover:text-ink">

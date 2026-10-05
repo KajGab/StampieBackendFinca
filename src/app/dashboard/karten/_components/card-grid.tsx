@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Building2, MapPin, Plus, QrCode, Send, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, Building2, MapPin, Plus, QrCode, Send, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { Input } from '@/components/ui/input'
@@ -106,10 +106,18 @@ export function CardGrid({
           <h1 className="text-[17px] font-semibold text-ink">{betrieb.name}</h1>
           <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
         </div>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus />
-          Neue Karte
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}/statistiken`}>
+              <BarChart3 />
+              Statistiken
+            </Link>
+          </Button>
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            <Plus />
+            Neue Karte
+          </Button>
+        </div>
       </div>
 
       {cards.length === 0 ? (

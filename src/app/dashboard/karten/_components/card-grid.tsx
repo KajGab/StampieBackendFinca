@@ -381,6 +381,9 @@ function CardTile({
     : null
 
   const stamps = design ? Math.ceil(design.stampGoal * 0.6) : 0
+  // Ein Gutschein hat keine Stempel: im Wallet steht groß das Angebot (wie in der
+  // Editor-Vorschau `AppleCouponCard`), also auch hier — kein Zähler, keine Stempelreihe.
+  const isCoupon = card.kind === 'COUPON'
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
@@ -391,9 +394,12 @@ function CardTile({
               className="truncate text-[12px] font-semibold"
               style={{ color: preview?.foregroundColor ?? '#ffffff' }}
             >
-              {preview?.programName?.trim() || card.name}
+              {isCoupon
+                ? // Wie im Wallet und in der Editor-Vorschau: der Aussteller, nicht der Programmname.
+                  preview?.issuerDisplayName?.trim() || card.orgName || card.name
+                : preview?.programName?.trim() || card.name}
             </span>
-            {design ? (
+            {design && !isCoupon ? (
               <span
                 className="shrink-0 text-[11px] tabular-nums"
                 style={{ color: preview?.labelColor ?? '#cccccc' }}
@@ -402,7 +408,27 @@ function CardTile({
               </span>
             ) : null}
           </div>
-          {design ? (
+          {isCoupon ? (
+            // Gleiche Höhe wie die Stempelreihe, damit die Kacheln im Raster gleich hoch sind.
+            <div
+              className="flex flex-col justify-center gap-1 overflow-hidden px-3 pb-3"
+              style={{ aspectRatio: String(375 / 123), color: preview?.foregroundColor ?? '#ffffff' }}
+            >
+              <span
+                className={cn(
+                  'line-clamp-2 text-[20px] font-semibold leading-tight',
+                  !preview?.offerTitle?.trim() && 'opacity-60',
+                )}
+              >
+                {preview?.offerTitle?.trim() || 'Noch kein Angebot eingetragen'}
+              </span>
+              {preview?.offerDetails?.trim() ? (
+                <span className="line-clamp-2 text-[12.5px] leading-snug opacity-90">
+                  {preview.offerDetails.trim()}
+                </span>
+              ) : null}
+            </div>
+          ) : design ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={stripPreviewUrl(design, { cardId: card.id, currentStamps: stamps, scale: 2 })}

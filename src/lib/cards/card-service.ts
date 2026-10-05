@@ -47,6 +47,11 @@ export interface CardSummary {
     emptyStampStyle: string
     stampIconAssetId: string | null
     heroAssetId: string | null
+    /** Gutscheinkarten: das Angebot, das im Wallet groß steht, statt einer Stempelreihe. */
+    offerTitle: string | null
+    offerDetails: string | null
+    /** Eigener Ausstellername; sonst steht im Wallet der Name des Betriebs. */
+    issuerDisplayName: string | null
   } | null
 }
 
@@ -102,6 +107,9 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
           emptyStampStyle: true,
           stampIconAssetId: true,
           heroAssetId: true,
+          offerTitle: true,
+          offerDetails: true,
+          issuerDisplayName: true,
         },
       },
     },
@@ -158,6 +166,9 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
             emptyStampStyle: source.emptyStampStyle,
             stampIconAssetId: source.stampIconAssetId,
             heroAssetId: source.heroAssetId,
+            offerTitle: source.offerTitle,
+            offerDetails: source.offerDetails,
+            issuerDisplayName: source.issuerDisplayName,
           }
         : null,
     }

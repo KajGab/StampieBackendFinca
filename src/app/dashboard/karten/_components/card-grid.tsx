@@ -107,7 +107,7 @@ export function CardGrid({
           <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="primary">
             <Link href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}/statistiken`}>
               <BarChart3 />
               Statistiken

@@ -41,7 +41,10 @@ export interface CouponStat {
 }
 
 export interface WeekStat {
+  /** Wochenanfang (Montag) kurz, z. B. „05.10.“ — für Diagramm und App. */
   label: string
+  /** Wochenanfang mit Jahr, z. B. „05.10.2026“ — für den Export. */
+  startsOn: string
   customers: number
   new: number
 }
@@ -139,7 +142,7 @@ export function computeOrgStats(input: {
       if (dev.first >= ws && dev.first < we) nw++
     }
     const label = `${String(ws.getDate()).padStart(2, '0')}.${String(ws.getMonth() + 1).padStart(2, '0')}.`
-    weekly.push({ label, customers: cum, new: nw })
+    weekly.push({ label, startsOn: `${label}${ws.getFullYear()}`, customers: cum, new: nw })
   }
 
   // Pro Karte: Kunden, „voll", eingelöst, Stempel-Verteilung (nach Gerät entdoppelt).

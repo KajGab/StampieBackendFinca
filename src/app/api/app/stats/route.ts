@@ -21,7 +21,7 @@ export async function GET(request: Request): Promise<Response> {
     active: stats.active,
     inactive: stats.inactive,
     inactiveAfterMonths: stats.inactiveAfterMonths,
-    weekly: stats.weekly,
+    weekly: stats.weekly.map(({ label, customers, new: added }) => ({ label, customers, new: added })),
     cards: stats.cards.map(({ id: _id, kind: _kind, ...card }) => card),
   })
 }

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { getSession, isAdminSession } from '@/lib/auth/session'
 import { LogoutButton } from '@/components/logout-button'
 import { accessibleOrgIds, listCustomers } from '@/lib/cards/card-service'
@@ -28,6 +29,7 @@ export default async function StatistikPage({ params }: { params: Promise<{ orgI
   const stats = await loadOrgStats(betrieb.id)
   const stampCards = stats.cards.filter((c) => c.kind === 'STAMP')
   const months = stats.inactiveAfterMonths
+  const exportHref = `/dashboard/kunden/${encodeURIComponent(betrieb.id)}/statistiken/export`
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -57,18 +59,35 @@ export default async function StatistikPage({ params }: { params: Promise<{ orgI
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-6">
-        <div>
-          <Link
-            href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}`}
-            className="inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
-          >
-            <ArrowLeft className="size-3" />
-            {betrieb.name}
-          </Link>
-          <h1 className="text-[17px] font-semibold text-ink">Statistiken</h1>
-          <p className="text-[13px] text-ink-3">
-            Karten von {betrieb.name}, die bei Kunden im Umlauf sind. Testkarten zählen nicht mit.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <Link
+              href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}`}
+              className="inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
+            >
+              <ArrowLeft className="size-3" />
+              {betrieb.name}
+            </Link>
+            <h1 className="text-[17px] font-semibold text-ink">Statistiken</h1>
+            <p className="text-[13px] text-ink-3">
+              Karten von {betrieb.name}, die bei Kunden im Umlauf sind. Testkarten zählen nicht mit.
+            </p>
+          </div>
+          {/* Normale Links statt Knopf-Handler: der Browser lädt die Datei selbst herunter. */}
+          <div className="flex items-center gap-2">
+            <Button asChild variant="primary">
+              <a href={`${exportHref}?format=xlsx`} download>
+                <Download />
+                Excel
+              </a>
+            </Button>
+            <Button asChild variant="primary">
+              <a href={`${exportHref}?format=csv`} download>
+                <Download />
+                CSV
+              </a>
+            </Button>
+          </div>
         </div>
 
         <section className="space-y-3">

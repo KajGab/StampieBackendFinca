@@ -110,6 +110,6 @@ describe('computeOrgStats', () => {
   it('liefert zwölf Wochen, die letzte ist die laufende', () => {
     const stats = run([pass({ createdAt: day(2026, 10, 13) }), pass({ createdAt: day(2026, 9, 1) })])
     expect(stats.weekly).toHaveLength(WEEKS)
-    expect(stats.weekly.at(-1)).toEqual({ label: '12.10.', customers: 2, new: 1 })
+    expect(stats.weekly.at(-1)).toEqual({ label: '12.10.', startsOn: '12.10.2026', customers: 2, new: 1 })
   })
 })

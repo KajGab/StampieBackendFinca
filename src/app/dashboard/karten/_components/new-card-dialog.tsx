@@ -107,7 +107,7 @@ export function NewCardDialog({
         <DialogHeader>
           <DialogTitle>Neue Karte</DialogTitle>
           <DialogDescription>
-            Nach dem Anlegen geht es direkt in den Designer. Der Kunde lässt sich jederzeit
+            Nach dem Anlegen geht es direkt in den Designer. Der Betrieb lässt sich jederzeit
             nachtragen.
           </DialogDescription>
         </DialogHeader>
@@ -166,7 +166,7 @@ export function NewCardDialog({
           </Field>
 
           {canChooseCustomer ? (
-            <Field label="Kunde" htmlFor="card-org" hint="Bestimmt, wer stempeln darf.">
+            <Field label="Betrieb" htmlFor="card-org" hint="Bestimmt, wer stempeln darf.">
               <Select value={orgId} onValueChange={setOrgId}>
                 <SelectTrigger id="card-org">
                   <SelectValue placeholder="Noch nicht zuweisen" />

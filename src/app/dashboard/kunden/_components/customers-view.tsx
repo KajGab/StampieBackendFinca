@@ -35,18 +35,11 @@ export function CustomersView({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[17px] font-semibold text-ink">Betriebe</h1>
-          <p className="text-[13px] text-ink-3">
-            {customers.length === 0
-              ? 'Noch kein Kunde angelegt.'
-              : `${customers.length} ${customers.length === 1 ? 'Kunde' : 'Kunden'}`}
-          </p>
-        </div>
+        <h1 className="text-[17px] font-semibold text-ink">Betriebe</h1>
         {canManage ? (
           <Button variant="primary" onClick={() => setDialog({ mode: 'create' })}>
             <Plus />
-            Neuer Kunde
+            Neuer Betrieb
           </Button>
         ) : null}
       </div>
@@ -58,19 +51,19 @@ export function CustomersView({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Nach Name suchen…"
           className="pl-9"
-          aria-label="Kunden nach Name suchen"
+          aria-label="Betriebe nach Name suchen"
         />
       </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
           <p className="text-[14px] font-medium text-ink">
-            {customers.length === 0 ? 'Noch kein Kunde' : 'Kein Treffer'}
+            {customers.length === 0 ? 'Noch kein Betrieb' : 'Kein Treffer'}
           </p>
           <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-snug text-ink-3">
             {customers.length === 0
-              ? 'Lege deinen ersten Kunden an — danach kannst du ihm beim Erstellen einer Karte zuweisen.'
-              : `Kein Kunde passt auf „${query.trim()}".`}
+              ? 'Lege deinen ersten Betrieb an — danach kannst du ihm beim Erstellen einer Karte zuweisen.'
+              : `Kein Betrieb passt auf „${query.trim()}".`}
           </p>
           {canManage && customers.length === 0 ? (
             <Button
@@ -79,7 +72,7 @@ export function CustomersView({
               onClick={() => setDialog({ mode: 'create' })}
             >
               <Plus />
-              Ersten Kunden anlegen
+              Ersten Betrieb anlegen
             </Button>
           ) : null}
         </div>
@@ -144,7 +137,7 @@ export function CustomersView({
                       <Link
                         href="/dashboard/karten"
                         className="inline-flex"
-                        title="Karten dieses Kunden ansehen"
+                        title="Karten dieses Betriebs ansehen"
                       >
                         <Badge tone="neutral">{c.cardCount}</Badge>
                       </Link>

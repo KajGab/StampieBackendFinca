@@ -112,7 +112,7 @@ export function CustomerDialog({
       onOpenChange(false)
       router.refresh()
     } catch {
-      setError('Der Kunde konnte nicht gespeichert werden. Bitte erneut versuchen.')
+      setError('Der Betrieb konnte nicht gespeichert werden. Bitte erneut versuchen.')
     } finally {
       setBusy(false)
     }
@@ -172,7 +172,7 @@ export function CustomerDialog({
     <Dialog open={state !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? 'Kunde bearbeiten' : 'Neuer Kunde'}</DialogTitle>
+          <DialogTitle>{editing ? 'Betrieb bearbeiten' : 'Neuer Betrieb'}</DialogTitle>
           <DialogDescription>
             Firma mit Kontaktdaten. Nur der Name ist Pflicht — der Rest lässt sich jederzeit
             nachtragen.

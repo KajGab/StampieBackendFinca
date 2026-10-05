@@ -451,7 +451,7 @@ function CardTile({
           {canAssign ? (
             <Button variant="ghost" size="sm" onClick={onAssign}>
               <Building2 />
-              {card.orgId ? 'Kunde ändern' : 'Kunde zuweisen'}
+              {card.orgId ? 'Betrieb ändern' : 'Betrieb zuweisen'}
             </Button>
           ) : null}
 

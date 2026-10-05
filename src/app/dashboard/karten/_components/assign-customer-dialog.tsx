@@ -77,7 +77,7 @@ export function AssignCustomerDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <Field label="Kunde" htmlFor="assign-org">
+          <Field label="Betrieb" htmlFor="assign-org">
             <Select value={orgId} onValueChange={setOrgId}>
               <SelectTrigger id="assign-org">
                 <SelectValue />

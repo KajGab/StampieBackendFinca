@@ -73,7 +73,7 @@ export function CardEditorShell({
               <div className="min-w-0">
                 <h1 className="truncate text-[15px] font-semibold text-ink">{cardName}</h1>
                 <p className="truncate text-[12px] text-ink-3">
-                  {customer.id ? customer.name : 'Noch keinem Kunden zugewiesen'}
+                  {customer.id ? customer.name : 'Noch keinem Betrieb zugewiesen'}
                 </p>
               </div>
             </div>

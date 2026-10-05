@@ -43,7 +43,7 @@ export async function createBusinessLoginAction(
 ): Promise<ActionResult<BusinessLogin>> {
   return guarded(async () => {
     const idParsed = z.string().cuid().safeParse(orgId)
-    if (!idParsed.success) return fail('Ungültige Kunden-ID.', 'validation')
+    if (!idParsed.success) return fail('Ungültige Betriebs-ID.', 'validation')
 
     await requireSession()
 
@@ -51,7 +51,7 @@ export async function createBusinessLoginAction(
       where: { id: idParsed.data },
       select: { id: true, name: true },
     })
-    if (!org) return fail('Kunde nicht gefunden.', 'not_found')
+    if (!org) return fail('Betrieb nicht gefunden.', 'not_found')
 
     // Find a free username based on the company name.
     const base = slugify(org.name)
@@ -92,7 +92,7 @@ export async function listBusinessLoginsAction(
 > {
   return guarded(async () => {
     const idParsed = z.string().cuid().safeParse(orgId)
-    if (!idParsed.success) return fail('Ungültige Kunden-ID.', 'validation')
+    if (!idParsed.success) return fail('Ungültige Betriebs-ID.', 'validation')
 
     await requireSession()
 

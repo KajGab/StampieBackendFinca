@@ -125,7 +125,7 @@ export async function updateCustomerAction(
 ): Promise<ActionResult<null>> {
   return guarded(async () => {
     const idParsed = z.string().cuid().safeParse(id)
-    if (!idParsed.success) return fail('Ungültige Kunden-ID.', 'validation')
+    if (!idParsed.success) return fail('Ungültige Betriebs-ID.', 'validation')
 
     const parsed = customerInputSchema.safeParse(input)
     if (!parsed.success) return fromZodError(parsed.error)
@@ -136,7 +136,7 @@ export async function updateCustomerAction(
       where: { id: idParsed.data },
       select: { id: true },
     })
-    if (!existing) return fail('Dieser Kunde wurde nicht gefunden.', 'not_found')
+    if (!existing) return fail('Dieser Betrieb wurde nicht gefunden.', 'not_found')
 
     await prisma.organization.update({
       where: { id: idParsed.data },

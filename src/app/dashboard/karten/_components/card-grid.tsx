@@ -34,20 +34,18 @@ const KIND_SECTIONS = [
 ] as const
 
 /**
- * The card overview — the entry point to everything.
+ * The cards of one business, grouped into stamp and coupon cards. A new card created here
+ * starts out assigned to that business.
  *
  * Each tile previews through the real strip renderer, so the grid shows what the customer
  * actually holds rather than an approximation.
- *
- * With `betrieb` set it is that business's page instead: only its cards, grouped into
- * stamp and coupon cards, and a new card starts out assigned to it.
  */
 export function CardGrid({
   cards,
   customers,
   canAssign,
   canStamp,
-  betrieb = null,
+  betrieb,
 }: {
   cards: CardSummary[]
   customers: CustomerOption[]
@@ -55,8 +53,8 @@ export function CardGrid({
   canAssign: boolean
   /** Agency members design cards but never book stamps. */
   canStamp: boolean
-  /** Set when the overview is opened from a business on the Betriebe page. */
-  betrieb?: CustomerOption | null
+  /** The business whose cards these are. */
+  betrieb: CustomerOption
 }) {
   const router = useRouter()
   const [creating, setCreating] = React.useState(false)
@@ -97,84 +95,45 @@ export function CardGrid({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {betrieb ? (
-          <div>
-            <Link
-              href="/dashboard/kunden"
-              className="inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
-            >
-              <ArrowLeft className="size-3" />
-              Alle Betriebe
-            </Link>
-            <h1 className="text-[17px] font-semibold text-ink">{betrieb.name}</h1>
-            <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
-          </div>
-        ) : (
-          <div>
-            <h1 className="text-[17px] font-semibold text-ink">Karten</h1>
-            <p className="text-[13px] text-ink-3">
-              {cards.length === 0
-                ? 'Noch keine Karte angelegt.'
-                : `${cards.length} ${cards.length === 1 ? 'Karte' : 'Karten'}`}
-            </p>
-          </div>
-        )}
+        <div>
+          <Link
+            href="/dashboard/kunden"
+            className="inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
+          >
+            <ArrowLeft className="size-3" />
+            Alle Betriebe
+          </Link>
+          <h1 className="text-[17px] font-semibold text-ink">{betrieb.name}</h1>
+          <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
+        </div>
         <Button variant="primary" onClick={() => setCreating(true)}>
           <Plus />
           Neue Karte
         </Button>
       </div>
 
-      {betrieb ? (
-        cards.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
-            <p className="text-[14px] font-medium text-ink">Noch keine Karte</p>
-            <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-snug text-ink-3">
-              Diesem Betrieb ist noch keine Stempel- oder Gutscheinkarte zugewiesen.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {KIND_SECTIONS.map((section) => {
-              const list = cards.filter((card) => card.kind === section.kind)
-              return (
-                <section key={section.kind} className="space-y-3">
-                  <h2 className="text-[13px] font-semibold text-ink">{section.title}</h2>
-                  {list.length === 0 ? (
-                    <p className="text-[12.5px] text-ink-3">{section.empty}</p>
-                  ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map(tile)}</div>
-                  )}
-                </section>
-              )
-            })}
-          </div>
-        )
-      ) : cards.length === 0 ? (
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-line px-6 py-16 text-center transition-colors hover:border-line-strong hover:bg-surface-2"
-        >
-          <Plus className="size-6 text-ink-3" />
-          <span className="text-[14px] font-medium text-ink">Erste Karte anlegen</span>
-          <span className="max-w-sm text-[12.5px] leading-snug text-ink-3">
-            Danach öffnet sich der Designer: Farben, Stempel, Texte — und die Testkarte aufs
-            Handy.
-          </span>
-        </button>
+      {cards.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
+          <p className="text-[14px] font-medium text-ink">Noch keine Karte</p>
+          <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-snug text-ink-3">
+            Diesem Betrieb ist noch keine Stempel- oder Gutscheinkarte zugewiesen.
+          </p>
+        </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map(tile)}
-
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line text-ink-3 transition-colors hover:border-line-strong hover:bg-surface-2 hover:text-ink"
-          >
-            <Plus className="size-6" />
-            <span className="text-[13px] font-medium">Neue Karte</span>
-          </button>
+        <div className="space-y-6">
+          {KIND_SECTIONS.map((section) => {
+            const list = cards.filter((card) => card.kind === section.kind)
+            return (
+              <section key={section.kind} className="space-y-3">
+                <h2 className="text-[13px] font-semibold text-ink">{section.title}</h2>
+                {list.length === 0 ? (
+                  <p className="text-[12.5px] text-ink-3">{section.empty}</p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map(tile)}</div>
+                )}
+              </section>
+            )
+          })}
         </div>
       )}
 
@@ -183,7 +142,7 @@ export function CardGrid({
         onOpenChange={setCreating}
         customers={customers}
         canChooseCustomer={canAssign}
-        defaultOrgId={betrieb?.id ?? null}
+        defaultOrgId={betrieb.id}
       />
       <AssignCustomerDialog
         card={assigning}

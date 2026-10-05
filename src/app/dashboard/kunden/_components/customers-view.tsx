@@ -197,7 +197,7 @@ export function CustomersView({
   )
 }
 
-/** Die Kartenübersicht, eingeschränkt auf einen Betrieb. */
+/** Die Seite eines Betriebs mit seinen Karten. */
 function cardsHref(orgId: string): string {
-  return `/dashboard/karten?betrieb=${encodeURIComponent(orgId)}`
+  return `/dashboard/kunden/${encodeURIComponent(orgId)}`
 }

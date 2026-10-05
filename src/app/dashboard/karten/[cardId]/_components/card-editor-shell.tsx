@@ -65,7 +65,7 @@ export function CardEditorShell({
               <Link
                 href={
                   customer.id
-                    ? `/dashboard/karten?betrieb=${encodeURIComponent(customer.id)}`
+                    ? `/dashboard/kunden/${encodeURIComponent(customer.id)}`
                     : '/dashboard/kunden'
                 }
                 className="shrink-0 rounded-md p-1 text-ink-3 hover:bg-surface-2 hover:text-ink"

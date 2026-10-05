@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils'
 import type { CardKind } from '@/lib/cards/schema'
 import type { CustomerOption } from '@/lib/cards/card-service'
 
-const NO_CUSTOMER = '__none__'
 const NO_TEMPLATE = '__none__'
 
 const CARD_KIND_OPTIONS: ReadonlyArray<{
@@ -67,7 +66,9 @@ export function NewCardDialog({
   const router = useRouter()
   const [name, setName] = React.useState('')
   const [kind, setKind] = React.useState<CardKind>('STAMP')
-  const [orgId, setOrgId] = React.useState<string>(NO_CUSTOMER)
+  // Leer heißt: noch kein Betrieb gewählt. Eine Karte ohne Betrieb gibt es nicht —
+  // sie wäre im Dashboard nirgends zu finden, weil Karten nur unter ihrem Betrieb stehen.
+  const [orgId, setOrgId] = React.useState<string>('')
   const [templateId, setTemplateId] = React.useState<string>(NO_TEMPLATE)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -79,9 +80,7 @@ export function NewCardDialog({
     setOrgId(
       defaultOrgId && customers.some((c) => c.id === defaultOrgId)
         ? defaultOrgId
-        : canChooseCustomer
-          ? NO_CUSTOMER
-          : (customers[0]?.id ?? NO_CUSTOMER),
+        : (customers[0]?.id ?? ''),
     )
     setTemplateId(NO_TEMPLATE)
     setError(null)
@@ -94,7 +93,7 @@ export function NewCardDialog({
       const result = await createCardAction({
         name: name.trim(),
         kind,
-        orgId: orgId === NO_CUSTOMER ? null : orgId,
+        orgId,
         templateId: templateId === NO_TEMPLATE ? null : templateId,
       })
       if (!result.success) {
@@ -178,10 +177,9 @@ export function NewCardDialog({
             <Field label="Betrieb" htmlFor="card-org" hint="Bestimmt, wer stempeln darf.">
               <Select value={orgId} onValueChange={setOrgId}>
                 <SelectTrigger id="card-org">
-                  <SelectValue placeholder="Noch nicht zuweisen" />
+                  <SelectValue placeholder="Betrieb wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_CUSTOMER}>Noch nicht zuweisen</SelectItem>
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.name}
@@ -222,7 +220,11 @@ export function NewCardDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
             Abbrechen
           </Button>
-          <Button variant="primary" disabled={busy || name.trim().length === 0} onClick={submit}>
+          <Button
+            variant="primary"
+            disabled={busy || name.trim().length === 0 || orgId === ''}
+            onClick={submit}
+          >
             {busy ? <Spinner /> : null}
             Anlegen und gestalten
           </Button>

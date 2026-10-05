@@ -15,6 +15,8 @@ import { geoLocationSchema, type CardKind, type GeoLocation } from './schema'
 export interface CardSummary {
   id: string
   name: string
+  /** Stempel- oder Gutscheinkarte — die Betriebsansicht gruppiert danach. */
+  kind: CardKind
   orgId: string | null
   orgName: string | null
   createdAt: string
@@ -81,6 +83,7 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
     select: {
       id: true,
       name: true,
+      kind: true,
       orgId: true,
       createdAt: true,
       org: { select: { name: true, latitude: true, longitude: true } },
@@ -129,6 +132,7 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
     return {
       id: row.id,
       name: row.name,
+      kind: row.kind,
       orgId: row.orgId,
       orgName: row.org?.name ?? null,
       createdAt: row.createdAt.toISOString(),

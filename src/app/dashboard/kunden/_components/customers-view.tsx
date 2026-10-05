@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Building2, KeyRound, Mail, MapPin, Pencil, Phone, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,7 @@ export function CustomersView({
   const [query, setQuery] = React.useState('')
   const [dialog, setDialog] = React.useState<DialogState>(null)
   const [loginsFor, setLoginsFor] = React.useState<CustomerRecord | null>(null)
+  const router = useRouter()
 
   const term = query.trim().toLowerCase()
   const filtered = term
@@ -90,12 +92,23 @@ export function CustomersView({
             </thead>
             <tbody>
               {filtered.map((c) => (
-                <tr key={c.id} className="border-b border-line last:border-b-0 hover:bg-surface-2">
+                // Die ganze Zeile führt zu den Karten des Betriebs; der Name ist zusätzlich ein
+                // echter Link, damit es auch mit der Tastatur und per Mittelklick geht.
+                <tr
+                  key={c.id}
+                  onClick={() => router.push(cardsHref(c.id))}
+                  className="cursor-pointer border-b border-line last:border-b-0 hover:bg-surface-2"
+                >
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-medium text-ink">
+                    <Link
+                      href={cardsHref(c.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Karten dieses Betriebs ansehen"
+                      className="flex items-center gap-2 font-medium text-ink hover:underline"
+                    >
                       <Building2 className="size-3.5 shrink-0 text-ink-3" />
                       {c.name}
-                    </span>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-ink-2">
                     <div className="flex flex-col gap-0.5">
@@ -135,7 +148,8 @@ export function CustomersView({
                   <td className="px-4 py-3 text-right">
                     {c.cardCount > 0 ? (
                       <Link
-                        href="/dashboard/karten"
+                        href={cardsHref(c.id)}
+                        onClick={(e) => e.stopPropagation()}
                         className="inline-flex"
                         title="Karten dieses Betriebs ansehen"
                       >
@@ -146,7 +160,8 @@ export function CustomersView({
                     )}
                   </td>
                   {canManage ? (
-                    <td className="px-4 py-3">
+                    // Die Knöpfe öffnen Dialoge — ein Klick darauf soll nicht auch die Zeile auslösen.
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -180,4 +195,9 @@ export function CustomersView({
       <LoginsDialog customer={loginsFor} onOpenChange={(open) => !open && setLoginsFor(null)} />
     </div>
   )
+}
+
+/** Die Kartenübersicht, eingeschränkt auf einen Betrieb. */
+function cardsHref(orgId: string): string {
+  return `/dashboard/karten?betrieb=${encodeURIComponent(orgId)}`
 }

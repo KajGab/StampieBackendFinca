@@ -55,11 +55,14 @@ export function NewCardDialog({
   onOpenChange,
   customers,
   canChooseCustomer,
+  defaultOrgId = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   customers: CustomerOption[]
   canChooseCustomer: boolean
+  /** Vorauswahl, wenn der Dialog aus der Ansicht eines Betriebs geöffnet wird. */
+  defaultOrgId?: string | null
 }) {
   const router = useRouter()
   const [name, setName] = React.useState('')
@@ -73,10 +76,16 @@ export function NewCardDialog({
     if (!open) return
     setName('')
     setKind('STAMP')
-    setOrgId(canChooseCustomer ? NO_CUSTOMER : (customers[0]?.id ?? NO_CUSTOMER))
+    setOrgId(
+      defaultOrgId && customers.some((c) => c.id === defaultOrgId)
+        ? defaultOrgId
+        : canChooseCustomer
+          ? NO_CUSTOMER
+          : (customers[0]?.id ?? NO_CUSTOMER),
+    )
     setTemplateId(NO_TEMPLATE)
     setError(null)
-  }, [open, canChooseCustomer, customers])
+  }, [open, canChooseCustomer, customers, defaultOrgId])
 
   const submit = async () => {
     setBusy(true)

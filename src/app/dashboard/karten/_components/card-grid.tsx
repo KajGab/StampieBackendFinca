@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Building2, MapPin, Plus, QrCode, Send, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Building2, MapPin, Plus, QrCode, Send, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { Input } from '@/components/ui/input'
@@ -27,17 +27,27 @@ import type { CardSummary, CustomerOption } from '@/lib/cards/card-service'
 import { DEFAULT_CARD_DESIGN } from '@/lib/cards/defaults'
 import { cn } from '@/lib/utils'
 
+/** Die Ansicht eines Betriebs trennt nach dem, was die Karte ausgibt. */
+const KIND_SECTIONS = [
+  { kind: 'STAMP', title: 'Stempelkarten', empty: 'Keine Stempelkarte.' },
+  { kind: 'COUPON', title: 'Gutscheinkarten', empty: 'Keine Gutscheinkarte.' },
+] as const
+
 /**
  * The card overview — the entry point to everything.
  *
  * Each tile previews through the real strip renderer, so the grid shows what the customer
  * actually holds rather than an approximation.
+ *
+ * With `betrieb` set it is that business's page instead: only its cards, grouped into
+ * stamp and coupon cards, and a new card starts out assigned to it.
  */
 export function CardGrid({
   cards,
   customers,
   canAssign,
   canStamp,
+  betrieb = null,
 }: {
   cards: CardSummary[]
   customers: CustomerOption[]
@@ -45,6 +55,8 @@ export function CardGrid({
   canAssign: boolean
   /** Agency members design cards but never book stamps. */
   canStamp: boolean
+  /** Set when the overview is opened from a business on the Betriebe page. */
+  betrieb?: CustomerOption | null
 }) {
   const router = useRouter()
   const [creating, setCreating] = React.useState(false)
@@ -69,24 +81,76 @@ export function CardGrid({
     }
   }
 
+  const tile = (card: CardSummary) => (
+    <CardTile
+      key={card.id}
+      card={card}
+      canAssign={canAssign}
+      canStamp={canStamp}
+      busy={busyId === card.id}
+      onAssign={() => setAssigning(card)}
+      onMessage={() => setMessaging(card)}
+      onDelete={() => setDeleting(card)}
+    />
+  )
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[17px] font-semibold text-ink">Karten</h1>
-          <p className="text-[13px] text-ink-3">
-            {cards.length === 0
-              ? 'Noch keine Karte angelegt.'
-              : `${cards.length} ${cards.length === 1 ? 'Karte' : 'Karten'}`}
-          </p>
-        </div>
+        {betrieb ? (
+          <div>
+            <Link
+              href="/dashboard/kunden"
+              className="inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
+            >
+              <ArrowLeft className="size-3" />
+              Alle Betriebe
+            </Link>
+            <h1 className="text-[17px] font-semibold text-ink">{betrieb.name}</h1>
+            <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
+          </div>
+        ) : (
+          <div>
+            <h1 className="text-[17px] font-semibold text-ink">Karten</h1>
+            <p className="text-[13px] text-ink-3">
+              {cards.length === 0
+                ? 'Noch keine Karte angelegt.'
+                : `${cards.length} ${cards.length === 1 ? 'Karte' : 'Karten'}`}
+            </p>
+          </div>
+        )}
         <Button variant="primary" onClick={() => setCreating(true)}>
           <Plus />
           Neue Karte
         </Button>
       </div>
 
-      {cards.length === 0 ? (
+      {betrieb ? (
+        cards.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
+            <p className="text-[14px] font-medium text-ink">Noch keine Karte</p>
+            <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-snug text-ink-3">
+              Diesem Betrieb ist noch keine Stempel- oder Gutscheinkarte zugewiesen.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {KIND_SECTIONS.map((section) => {
+              const list = cards.filter((card) => card.kind === section.kind)
+              return (
+                <section key={section.kind} className="space-y-3">
+                  <h2 className="text-[13px] font-semibold text-ink">{section.title}</h2>
+                  {list.length === 0 ? (
+                    <p className="text-[12.5px] text-ink-3">{section.empty}</p>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map(tile)}</div>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        )
+      ) : cards.length === 0 ? (
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -101,18 +165,7 @@ export function CardGrid({
         </button>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map((card) => (
-            <CardTile
-              key={card.id}
-              card={card}
-              canAssign={canAssign}
-              canStamp={canStamp}
-              busy={busyId === card.id}
-              onAssign={() => setAssigning(card)}
-              onMessage={() => setMessaging(card)}
-              onDelete={() => setDeleting(card)}
-            />
-          ))}
+          {cards.map(tile)}
 
           <button
             type="button"
@@ -130,6 +183,7 @@ export function CardGrid({
         onOpenChange={setCreating}
         customers={customers}
         canChooseCustomer={canAssign}
+        defaultOrgId={betrieb?.id ?? null}
       />
       <AssignCustomerDialog
         card={assigning}

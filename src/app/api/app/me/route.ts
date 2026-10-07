@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireAppUser } from '@/lib/auth/app-session'
+import { requireAppUserAllowingPendingPassword } from '@/lib/auth/app-session'
 
 export const runtime = 'nodejs'
 
 /** Who am I? Used by the app after login to know the business + whether to force a password change. */
 export async function GET(request: Request): Promise<Response> {
-  const appUser = await requireAppUser(request)
+  const appUser = await requireAppUserAllowingPendingPassword(request)
   if (!appUser) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
 
   return NextResponse.json({

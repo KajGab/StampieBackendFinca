@@ -90,7 +90,26 @@ export async function resolveAppUser(token: string | null): Promise<AppUser | nu
   }
 }
 
-/** Convenience: resolve the app user straight from a request. */
+/**
+ * Resolve the app user straight from a request — for every route that *does* something.
+ *
+ * A login still on its start password is refused here: the start password went over
+ * the counter or a chat message, so until it is replaced it is not a credential the
+ * business should be able to stamp or hand out cards with. Before, only the app's own
+ * screen enforced the change; anyone calling the API directly could skip it.
+ *
+ * The few routes that must stay reachable to *perform* the change (`me`,
+ * `change-password`, `logout`) use `requireAppUserAllowingPendingPassword` instead.
+ */
 export async function requireAppUser(request: Request): Promise<AppUser | null> {
+  const user = await resolveAppUser(bearerToken(request))
+  if (!user || user.mustChangePassword) return null
+  return user
+}
+
+/** Like `requireAppUser`, but also admits a login that still has to change its password. */
+export async function requireAppUserAllowingPendingPassword(
+  request: Request,
+): Promise<AppUser | null> {
   return resolveAppUser(bearerToken(request))
 }

@@ -6,7 +6,17 @@
  * by accident or on purpose.
  */
 
-/** A card cannot be stamped twice in quick succession — double scans are common. */
+/**
+ * Eine Karte bekommt höchstens einen Stempel-Vorgang pro Kalendertag. Wer heute schon
+ * gestempelt wurde, kann erst ab morgen 00:00 Uhr wieder gestempelt werden — ein Besuch, ein
+ * Stempel. Das fängt nebenbei auch jeden Doppelscan ab.
+ *
+ * Gezählt wird nach deutscher Zeit: die Betriebe sind hier, und auf dem Server (UTC) läge
+ * Mitternacht sonst um 1 oder 2 Uhr nachts.
+ */
+export const STAMP_TIME_ZONE = 'Europe/Berlin'
+
+/** Doppelscan-Sperre beim Einlösen einer vollen Karte: zweimal ausgelöst ist nicht zwei Belohnungen. */
 export const STAMP_COOLDOWN_MS = 60_000
 
 /** Obergrenze einer einzelnen Buchung. Mehr als das ist an der Kasse ein Vertipper. */
@@ -14,12 +24,13 @@ export const MAX_STAMPS_PER_BOOKING = 10
 
 export type StampDecision =
   | { ok: true; nextBalance: number; booked: number; completesCard: boolean }
-  | { ok: false; reason: 'cooldown'; retryInMs: number }
+  | { ok: false; reason: 'already_today' }
   | { ok: false; reason: 'already_full' }
 
 export interface StampState {
   stamps: number
   stampGoal: number
+  /** Zeitpunkt des letzten Stempel-Vorgangs auf dieser Karte (nicht des letzten Einlösens). */
   lastStampAt: Date | null
   /**
    * Wie viele Stempel diese eine Buchung vergeben soll — drei Kaffee auf einmal sind ein
@@ -33,13 +44,12 @@ export interface StampState {
 }
 
 export function decideStamp(state: StampState, now: Date = new Date()): StampDecision {
+  // Zuerst „voll": eine volle Karte wird eingelöst, und das geht auch am selben Tag — das
+  // Einlösen ist kein Stempel.
   if (state.stamps >= state.stampGoal) return { ok: false, reason: 'already_full' }
 
-  if (state.lastStampAt) {
-    const elapsed = now.getTime() - state.lastStampAt.getTime()
-    if (elapsed < STAMP_COOLDOWN_MS) {
-      return { ok: false, reason: 'cooldown', retryInMs: STAMP_COOLDOWN_MS - elapsed }
-    }
+  if (state.lastStampAt && stampDay(state.lastStampAt) === stampDay(now)) {
+    return { ok: false, reason: 'already_today' }
   }
 
   const wanted = Math.min(Math.max(Math.trunc(state.requested ?? 1), 1), MAX_STAMPS_PER_BOOKING)
@@ -59,6 +69,22 @@ export function decideRedeem(state: Pick<StampState, 'stamps' | 'stampGoal'>): R
   // A full card is cashed in as a whole; leftover stamps carry over.
   return { ok: true, nextBalance: state.stamps - state.stampGoal }
 }
+
+const dayFormat = new Intl.DateTimeFormat('en-CA', {
+  timeZone: STAMP_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/** Der Kalendertag in deutscher Zeit, z. B. „2026-10-07“ — Sommer- und Winterzeit inklusive. */
+export function stampDay(at: Date): string {
+  return dayFormat.format(at)
+}
+
+/** Die Meldung an der Kasse, gleich für App und Dashboard. */
+export const ALREADY_STAMPED_TODAY_MESSAGE =
+  'Diese Karte wurde heute schon gestempelt. Ab morgen, 00:00 Uhr, geht es wieder.'
 
 /**
  * Serial numbers travel in a QR code, so a scan can pick up whitespace or a full URL.

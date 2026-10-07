@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { requireAppUser } from '@/lib/auth/app-session'
 import {
+  ALREADY_STAMPED_TODAY_MESSAGE,
   MAX_STAMPS_PER_BOOKING,
   STAMP_COOLDOWN_MS,
   decideRedeem,
@@ -141,11 +142,10 @@ export async function POST(request: Request): Promise<Response> {
     if (decision.reason === 'already_full') {
       return redeemFullCard(pass, goal, parsed.data.count, serial, appUser.userId)
     }
+    // Eigener Code statt `cooldown`: die App zeigt bei `cooldown` „Gerade eben gestempelt"
+    // und „Sperre gegen Doppelscans" — hier geht es um den ganzen Tag.
     return NextResponse.json(
-      {
-        error: `Gerade eben schon gestempelt. In ${formatCooldown(decision.retryInMs)} erneut versuchen.`,
-        code: 'cooldown',
-      },
+      { error: ALREADY_STAMPED_TODAY_MESSAGE, code: 'already_stamped_today' },
       { status: 409 },
     )
   }

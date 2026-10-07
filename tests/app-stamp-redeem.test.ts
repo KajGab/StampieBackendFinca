@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Volle Karte an der Kasse: einlösen und zurücksetzen.
@@ -167,5 +167,49 @@ describe('Scan auf einer vollen Karte', () => {
 
     expect(res.status).toBe(403)
     expect(eventCreate).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Ein Stempel-Vorgang pro Tag: wer heute schon gestempelt wurde, bekommt erst ab 00:00 Uhr
+ * deutscher Zeit wieder einen — egal, wie viel Zeit dazwischen liegt.
+ */
+describe('Zweiter Scan am selben Tag', () => {
+  const halbvoll = { ...vollerPass, id: 'p2', stamps: 3 }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    passFindFirst.mockResolvedValue(halbvoll)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('weist ab und bucht nichts, wenn heute schon gestempelt wurde', async () => {
+    // Heute 08:00 gestempelt, jetzt 12:00 Uhr in Berlin.
+    vi.setSystemTime(new Date('2026-10-07T10:00:00Z'))
+    eventFindFirst.mockResolvedValue({ createdAt: new Date('2026-10-07T06:00:00Z') })
+
+    const res = await POST(scan('K-HALB'))
+    const body = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(body.code).toBe('already_stamped_today')
+    expect(body.error).toContain('heute schon gestempelt')
+    expect(passUpdate).not.toHaveBeenCalled()
+    expect(eventCreate).not.toHaveBeenCalled()
+  })
+
+  it('stempelt wieder ab 00:00 Uhr am nächsten Tag', async () => {
+    // Gestern 23:30, jetzt 00:05 Uhr in Berlin — eine halbe Stunde, aber ein neuer Tag.
+    vi.setSystemTime(new Date('2026-10-06T22:05:00Z'))
+    eventFindFirst.mockResolvedValue({ createdAt: new Date('2026-10-06T21:30:00Z') })
+
+    const res = await POST(scan('K-HALB'))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.stamps).toBe(4)
   })
 })

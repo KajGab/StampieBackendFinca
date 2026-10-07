@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_STAMPS_PER_BOOKING,
-  STAMP_COOLDOWN_MS,
   decideRedeem,
   decideStamp,
   extractSerial,
@@ -53,40 +52,47 @@ describe('decideStamp', () => {
       expect(d).toEqual({ ok: false, reason: 'already_full' })
     })
 
-    it('still respects the cooldown', () => {
+    it('still allows only one booking per day', () => {
       const d = decideStamp(
         { stamps: 1, stampGoal: 10, lastStampAt: new Date(now.getTime() - 5_000), requested: 3 },
         now,
       )
-      expect(!d.ok && d.reason).toBe('cooldown')
+      expect(!d.ok && d.reason).toBe('already_today')
     })
   })
 
-  describe('cooldown — a double scan must not count twice', () => {
-    it('blocks a second stamp within the window', () => {
-      const d = decideStamp(
-        { stamps: 3, stampGoal: 10, lastStampAt: new Date(now.getTime() - 5_000) },
-        now,
-      )
-      expect(d.ok).toBe(false)
-      expect(!d.ok && d.reason).toBe('cooldown')
-      expect(!d.ok && d.reason === 'cooldown' && d.retryInMs).toBe(STAMP_COOLDOWN_MS - 5_000)
+  describe('ein Stempel-Vorgang pro Tag — erst ab 00:00 Uhr deutscher Zeit wieder', () => {
+    const at = (iso: string) => new Date(iso)
+    const stamp = (last: string, current: string) =>
+      decideStamp({ stamps: 3, stampGoal: 10, lastStampAt: at(last) }, at(current))
+
+    it('sperrt einen zweiten Stempel am selben Tag, auch Stunden später', () => {
+      // 08:00 und 23:59 Uhr in Berlin (Sommerzeit, UTC+2).
+      expect(stamp('2026-08-04T06:00:00Z', '2026-08-04T06:00:05Z')).toEqual({ ok: false, reason: 'already_today' })
+      expect(stamp('2026-08-04T06:00:00Z', '2026-08-04T21:59:00Z')).toEqual({ ok: false, reason: 'already_today' })
     })
 
-    it('allows it once the window has passed', () => {
-      const d = decideStamp(
-        { stamps: 3, stampGoal: 10, lastStampAt: new Date(now.getTime() - STAMP_COOLDOWN_MS - 1) },
-        now,
-      )
-      expect(d.ok).toBe(true)
+    it('gibt die Karte um 00:00 Uhr deutscher Zeit wieder frei', () => {
+      // 23:30 Uhr am 4. und 00:00 Uhr am 5. in Berlin — nur eine halbe Stunde, aber ein neuer Tag.
+      expect(stamp('2026-08-04T21:30:00Z', '2026-08-04T22:00:00Z').ok).toBe(true)
     })
 
-    it('treats the exact boundary as allowed', () => {
-      const d = decideStamp(
-        { stamps: 3, stampGoal: 10, lastStampAt: new Date(now.getTime() - STAMP_COOLDOWN_MS) },
-        now,
-      )
-      expect(d.ok).toBe(true)
+    it('rechnet nach deutscher Zeit, nicht nach UTC', () => {
+      // Beides der 5. August in Berlin (00:30 und 12:00), in UTC aber zwei Tage.
+      expect(stamp('2026-08-04T22:30:00Z', '2026-08-05T10:00:00Z')).toEqual({ ok: false, reason: 'already_today' })
+    })
+
+    it('stimmt auch am Tag der Zeitumstellung', () => {
+      // 25. Oktober 2026: 00:30 Uhr (Sommerzeit) und 23:30 Uhr (Winterzeit) — 24 Stunden
+      // dazwischen, aber derselbe Tag.
+      expect(stamp('2026-10-24T22:30:00Z', '2026-10-25T22:30:00Z')).toEqual({ ok: false, reason: 'already_today' })
+      // 00:00 Uhr am 26. in Winterzeit ist 23:00 UTC.
+      expect(stamp('2026-10-25T22:30:00Z', '2026-10-25T23:00:00Z').ok).toBe(true)
+    })
+
+    it('lässt eine volle Karte am selben Tag trotzdem einlösen', () => {
+      const d = decideStamp({ stamps: 10, stampGoal: 10, lastStampAt: now }, now)
+      expect(d).toEqual({ ok: false, reason: 'already_full' })
     })
   })
 })

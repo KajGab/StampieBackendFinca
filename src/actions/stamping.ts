@@ -4,7 +4,12 @@ import { z } from 'zod'
 import { assertStampAccess, assertCardAccess } from '@/lib/auth/session'
 import { fail, fromZodError, guarded, ok, type ActionResult } from '@/lib/action-result'
 import { prisma } from '@/lib/db'
-import { decideRedeem, decideStamp, extractSerial, formatCooldown } from '@/lib/cards/stamping'
+import {
+  ALREADY_STAMPED_TODAY_MESSAGE,
+  decideRedeem,
+  decideStamp,
+  extractSerial,
+} from '@/lib/cards/stamping'
 import { expireGoogleOffer, syncGoogleStampCount } from '@/lib/wallet/google-sync'
 import { pushAppleWalletUpdate } from '@/lib/wallet/apple-sync'
 import { issueRewardCoupon, type IssuedRewardCoupon } from '@/lib/cards/reward-coupon'
@@ -169,10 +174,7 @@ export async function stampAction(input: unknown): Promise<ActionResult<StampRes
       if (decision.reason === 'already_full') {
         return fail('Diese Karte ist voll. Bitte zuerst die Belohnung einlösen.', 'validation')
       }
-      return fail(
-        `Diese Karte wurde gerade eben gestempelt. Bitte in ${formatCooldown(decision.retryInMs)} erneut versuchen.`,
-        'validation',
-      )
+      return fail(ALREADY_STAMPED_TODAY_MESSAGE, 'validation')
     }
 
     // Counter and audit entry move together — a stamp without a trace is not acceptable.

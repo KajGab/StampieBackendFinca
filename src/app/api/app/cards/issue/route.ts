@@ -44,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const card = await prisma.card.findFirst({
     where: { id: parsed.data.cardId },
-    select: { id: true, name: true, orgId: true, nfcCode: true },
+    select: { id: true, name: true, kind: true, orgId: true, nfcCode: true },
   })
 
   // Gelöscht heißt gelöscht: die App hält womöglich noch eine Liste von vorhin in der Hand.
@@ -86,6 +86,8 @@ export async function POST(request: Request): Promise<Response> {
     cardId: card.id,
     cardName: card.name,
     url: `${appUrl()}/k/${code}`,
+    kind: card.kind,
     stampGoal: design.stampGoal,
+    offerTitle: design.offerTitle?.trim() || null,
   })
 }

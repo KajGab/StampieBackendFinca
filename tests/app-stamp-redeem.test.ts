@@ -201,6 +201,17 @@ describe('Zweiter Scan am selben Tag', () => {
     expect(eventCreate).not.toHaveBeenCalled()
   })
 
+  it('stempelt ein zweites Mal, wenn die Karte im Dashboard freigegeben wurde', async () => {
+    vi.setSystemTime(new Date('2026-10-07T12:00:00Z'))
+    eventFindFirst.mockResolvedValue({ createdAt: new Date('2026-10-07T06:00:00Z') })
+    passFindFirst.mockResolvedValue({ ...halbvoll, stampUnlockedAt: new Date('2026-10-07T11:59:00Z') })
+
+    const res = await POST(scan('K-HALB'))
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).stamps).toBe(4)
+  })
+
   it('stempelt wieder ab 00:00 Uhr am nächsten Tag', async () => {
     // Gestern 23:30, jetzt 00:05 Uhr in Berlin — eine halbe Stunde, aber ein neuer Tag.
     vi.setSystemTime(new Date('2026-10-06T22:05:00Z'))

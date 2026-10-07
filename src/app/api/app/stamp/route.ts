@@ -76,6 +76,7 @@ export async function POST(request: Request): Promise<Response> {
       id: true,
       stamps: true,
       stampGoal: true,
+      stampUnlockedAt: true,
       cardId: true,
       card: { select: { orgId: true } },
     },
@@ -123,6 +124,7 @@ export async function POST(request: Request): Promise<Response> {
     stamps: pass.stamps,
     stampGoal: goal,
     lastStampAt: last?.createdAt ?? null,
+    unlockedAt: pass.stampUnlockedAt,
     requested: parsed.data.count,
   })
 

@@ -168,6 +168,7 @@ export async function stampAction(input: unknown): Promise<ActionResult<StampRes
       stamps: pass.stamps,
       stampGoal: goal,
       lastStampAt: last?.createdAt ?? null,
+      unlockedAt: pass.stampUnlockedAt,
     })
 
     if (!decision.ok) {

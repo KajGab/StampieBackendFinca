@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, BarChart3, Building2, MapPin, Plus, QrCode, Send, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, Building2, MapPin, Plus, QrCode, Repeat, Send, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { Input } from '@/components/ui/input'
@@ -106,7 +106,13 @@ export function CardGrid({
           <h1 className="text-[17px] font-semibold text-ink">{betrieb.name}</h1>
           <p className="text-[13px] text-ink-3">Stempel- und Gutscheinkarten dieses Betriebs</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="primary">
+            <Link href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}/zweiter-besuch`}>
+              <Repeat />
+              Heute das zweite Mal da
+            </Link>
+          </Button>
           <Button asChild variant="primary">
             <Link href={`/dashboard/kunden/${encodeURIComponent(betrieb.id)}/statistiken`}>
               <BarChart3 />

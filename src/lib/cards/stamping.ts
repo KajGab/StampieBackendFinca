@@ -33,6 +33,11 @@ export interface StampState {
   /** Zeitpunkt des letzten Stempel-Vorgangs auf dieser Karte (nicht des letzten Einlösens). */
   lastStampAt: Date | null
   /**
+   * Freigabe für einen weiteren Stempel am selben Tag (`IssuedPass.stampUnlockedAt`). Zählt
+   * nur, wenn sie nach dem letzten Stempel erteilt wurde — so gilt sie für genau einen Vorgang.
+   */
+  unlockedAt?: Date | null
+  /**
    * Wie viele Stempel diese eine Buchung vergeben soll — drei Kaffee auf einmal sind ein
    * Vorgang, nicht drei Scans. Ohne Angabe einer.
    *
@@ -48,9 +53,11 @@ export function decideStamp(state: StampState, now: Date = new Date()): StampDec
   // Einlösen ist kein Stempel.
   if (state.stamps >= state.stampGoal) return { ok: false, reason: 'already_full' }
 
-  if (state.lastStampAt && stampDay(state.lastStampAt) === stampDay(now)) {
-    return { ok: false, reason: 'already_today' }
-  }
+  const stampedToday = state.lastStampAt !== null && stampDay(state.lastStampAt) === stampDay(now)
+  const unlocked = Boolean(
+    state.lastStampAt && state.unlockedAt && state.unlockedAt > state.lastStampAt,
+  )
+  if (stampedToday && !unlocked) return { ok: false, reason: 'already_today' }
 
   const wanted = Math.min(Math.max(Math.trunc(state.requested ?? 1), 1), MAX_STAMPS_PER_BOOKING)
   const nextBalance = Math.min(state.stamps + wanted, state.stampGoal)

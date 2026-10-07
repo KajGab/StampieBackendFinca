@@ -90,6 +90,34 @@ describe('decideStamp', () => {
       expect(stamp('2026-10-25T22:30:00Z', '2026-10-25T23:00:00Z').ok).toBe(true)
     })
 
+    describe('Freigabe für einen zweiten Stempel („Heute das zweite Mal da")', () => {
+      const unlockedStamp = (last: string, unlocked: string | null, current: string) =>
+        decideStamp(
+          { stamps: 3, stampGoal: 10, lastStampAt: at(last), unlockedAt: unlocked ? at(unlocked) : null },
+          at(current),
+        )
+
+      it('lässt nach der Freigabe einen weiteren Stempel am selben Tag zu', () => {
+        // 10:00 gestempelt, 14:00 freigegeben, 14:01 wieder gestempelt (Berlin, Sommerzeit).
+        expect(unlockedStamp('2026-08-04T08:00:00Z', '2026-08-04T12:00:00Z', '2026-08-04T12:01:00Z').ok).toBe(true)
+      })
+
+      it('gilt nur für einen Vorgang: nach dem zweiten Stempel ist die Karte wieder gesperrt', () => {
+        // Freigabe 14:00, zweiter Stempel 14:01 — jetzt 15:00.
+        expect(unlockedStamp('2026-08-04T12:01:00Z', '2026-08-04T12:00:00Z', '2026-08-04T13:00:00Z')).toEqual({
+          ok: false,
+          reason: 'already_today',
+        })
+      })
+
+      it('zählt keine Freigabe, die vor dem letzten Stempel erteilt wurde', () => {
+        expect(unlockedStamp('2026-08-04T08:00:00Z', '2026-08-04T07:00:00Z', '2026-08-04T09:00:00Z')).toEqual({
+          ok: false,
+          reason: 'already_today',
+        })
+      })
+    })
+
     it('lässt eine volle Karte am selben Tag trotzdem einlösen', () => {
       const d = decideStamp({ stamps: 10, stampGoal: 10, lastStampAt: now }, now)
       expect(d).toEqual({ ok: false, reason: 'already_full' })

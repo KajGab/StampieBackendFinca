@@ -487,6 +487,14 @@ model IssuedPass {
   /// Set when a full card was cashed in; the counter restarts from zero.
   lastRewardAt DateTime?
 
+  /// Freigabe für einen weiteren Stempel am selben Tag („Heute das zweite Mal da").
+  ///
+  /// Eine Karte bekommt sonst nur einen Stempel-Vorgang pro Tag. Liegt dieser Zeitpunkt
+  /// nach dem letzten Stempel, darf genau ein weiterer Vorgang gebucht werden — danach ist
+  /// der letzte Stempel wieder jünger als die Freigabe und die Sperre gilt erneut. Kein
+  /// Zähler, der zurückgesetzt werden müsste.
+  stampUnlockedAt DateTime?
+
   /// Nachricht nur für diesen Pass, gesetzt beim Versand an eine Gruppe.
   ///
   /// Apple kennt keinen freien Push: eine Meldung entsteht, weil sich ein Feld ändert.

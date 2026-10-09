@@ -42,7 +42,8 @@ describe('Apple-Pass der Stammkundenkarte', () => {
     expect(card?.headerFields).toEqual([
       { key: 'status', label: 'Status', value: 'Stammkunde', textAlignment: 'PKTextAlignmentRight' },
     ])
-    expect(card?.primaryFields).toEqual([{ key: 'holder', label: 'Name', value: 'Erika Musterfrau' }])
+    // Ohne Beschriftung — Wallet setzte sie sonst unter den Namen.
+    expect(card?.primaryFields).toEqual([{ key: 'holder', value: 'Erika Musterfrau' }])
     expect(JSON.stringify(card)).not.toContain('/10')
   })
 

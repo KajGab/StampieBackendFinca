@@ -176,11 +176,13 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
   // empty there and the stamp grid keeps the space.
   // Ohne Stempelreihe zeigt eine storeCard ihre primaryFields — dort steht bei der
   // Stammkundenkarte der Name, damit das Personal ihn auf einen Blick vergleichen kann.
+  // Ohne Beschriftung: Wallet setzt sie bei primaryFields immer *unter* den Wert, und ein
+  // „Name" unter dem Namen liest sich verkehrt herum. „Stammkunde" steht ja schon oben.
   const primaryFields: PassField[] =
     isCoupon && design.offerTitle?.trim()
       ? [{ key: 'offer', value: design.offerTitle.trim() }]
       : isMember && ctx.customerName?.trim()
-        ? [{ key: 'holder', label: 'Name', value: ctx.customerName.trim() }]
+        ? [{ key: 'holder', value: ctx.customerName.trim() }]
         : []
 
   const secondaryFields: PassField[] = []

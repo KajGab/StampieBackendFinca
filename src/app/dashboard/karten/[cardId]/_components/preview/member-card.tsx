@@ -30,9 +30,12 @@ export function AppleMemberCard({
   logoUrl: string | null
   organizationName: string
 }) {
-  const secondary = [
+  // Eine storeCard ohne Streifen setzt secondary- und auxiliaryFields in eine Zeile —
+  // „Mitglied seit" steht also neben Vorteil und Programm, nicht darunter.
+  const fields = [
     design.rewardText.trim() ? { label: 'VORTEIL', value: design.rewardText.trim() } : null,
     design.programName.trim() ? { label: 'PROGRAMM', value: design.programName.trim() } : null,
+    { label: 'MITGLIED SEIT', value: SAMPLE_SINCE },
   ].filter((f): f is { label: string; value: string } => f !== null)
 
   return (
@@ -62,35 +65,27 @@ export function AppleMemberCard({
         </div>
       </div>
 
-      {/* primaryFields — ohne Stempelreihe sichtbar: der Name, groß. */}
-      <div className="px-3.5 pb-2 pt-4">
-        <div className="text-[9px] font-medium uppercase tracking-[0.06em]" style={{ color: design.labelColor }}>
-          Name
-        </div>
-        <div className="text-[24px] font-semibold leading-tight">{SAMPLE_NAME}</div>
+      {/* primaryFields — ohne Stempelreihe sichtbar: der Name, groß und ohne Beschriftung. */}
+      <div className="px-3.5 pb-4 pt-5">
+        <div className="truncate text-[26px] font-normal leading-tight">{SAMPLE_NAME}</div>
       </div>
 
-      {secondary.length > 0 ? (
-        <div className="flex gap-6 px-3.5 pb-1 pt-2">
-          {secondary.map((f) => (
-            <div key={f.label} className="min-w-0 flex-1">
-              <div className="text-[9px] font-medium uppercase tracking-[0.06em]" style={{ color: design.labelColor }}>
-                {f.label}
-              </div>
-              <div className="truncate text-[13px] font-medium">{f.value}</div>
+      <div className="flex justify-between gap-3 px-3.5 pb-1 pt-2">
+        {fields.map((f) => (
+          // Das Datum ist kurz und wird nie gekürzt; Vorteil und Programm teilen sich den Rest.
+          <div key={f.label} className={f.label === 'MITGLIED SEIT' ? 'shrink-0' : 'min-w-0'}>
+            <div
+              className="truncate text-[9px] font-medium uppercase tracking-[0.06em]"
+              style={{ color: design.labelColor }}
+            >
+              {f.label}
             </div>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="px-3.5 pt-2">
-        <div className="text-[9px] font-medium uppercase tracking-[0.06em]" style={{ color: design.labelColor }}>
-          Mitglied seit
-        </div>
-        <div className="text-[13px] font-medium">{SAMPLE_SINCE}</div>
+            <div className="truncate text-[12px] font-medium">{f.value}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="px-3.5 pb-3.5 pt-3">
+      <div className="px-3.5 pb-3.5 pt-6">
         <div className="mx-auto flex w-[132px] flex-col items-center rounded-md bg-white p-2">
           <BarcodePlaceholder format={design.barcodeFormat} />
           <span className="mt-1 text-[8px] tracking-widest text-black/60">SN-DEMO-0001</span>

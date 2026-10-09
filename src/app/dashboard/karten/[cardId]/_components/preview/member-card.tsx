@@ -8,9 +8,9 @@ import type { CardDesignInput } from '@/lib/cards/schema'
 /**
  * Vorderseiten der Stammkundenkarte — eine Stempelkarte ohne Stempel.
  *
- * Dieselbe Anordnung wie `AppleStoreCard` bzw. `GoogleLoyaltyCard`, nur ohne Zähler und
- * ohne Stempelreihe: dort, wo die Stempelkarte ihren Stand zeigt, steht der Name des
- * Kunden. So wie `buildPassJson` und `buildLoyaltyObject` es für den echten Pass bauen.
+ * Apple: Stil `generic` — „Name" über dem Namen, kein Zähler, keine Stempelreihe.
+ * Google: dieselbe Anordnung wie `GoogleLoyaltyCard`, der Name steht statt des
+ * Stempelstands. So wie `buildPassJson` und `buildLoyaltyObject` es für den echten Pass bauen.
  */
 
 /** Platzhalter — im Editor gibt es noch keinen Kunden. */
@@ -30,8 +30,7 @@ export function AppleMemberCard({
   logoUrl: string | null
   organizationName: string
 }) {
-  // Eine storeCard ohne Streifen setzt secondary- und auxiliaryFields in eine Zeile —
-  // „Mitglied seit" steht also neben Vorteil und Programm, nicht darunter.
+  // Wie `buildPassJson`: Vorteil, Programm und „Mitglied seit" stehen in einer Zeile.
   const fields = [
     design.rewardText.trim() ? { label: 'VORTEIL', value: design.rewardText.trim() } : null,
     design.programName.trim() ? { label: 'PROGRAMM', value: design.programName.trim() } : null,
@@ -65,8 +64,11 @@ export function AppleMemberCard({
         </div>
       </div>
 
-      {/* primaryFields — ohne Stempelreihe sichtbar: der Name, groß und ohne Beschriftung. */}
+      {/* primaryFields im Stil `generic`: die Beschriftung steht über dem Namen. */}
       <div className="px-3.5 pb-4 pt-5">
+        <div className="text-[9px] font-medium uppercase tracking-[0.06em]" style={{ color: design.labelColor }}>
+          Name
+        </div>
         <div className="truncate text-[26px] font-normal leading-tight">{SAMPLE_NAME}</div>
       </div>
 

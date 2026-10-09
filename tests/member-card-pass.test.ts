@@ -31,10 +31,11 @@ const ctx: BuildPassJsonContext = {
 
 describe('Apple-Pass der Stammkundenkarte', () => {
   const pass = buildPassJson(design(), ctx)
-  const card = pass.storeCard
+  const card = pass.generic
 
-  it('ist eine storeCard wie die Stempelkarte, kein Gutschein', () => {
+  it('ist eine generic-Karte — nur dort steht „Name" über dem Namen statt darunter', () => {
     expect(card).toBeDefined()
+    expect(pass.storeCard).toBeUndefined()
     expect(pass.coupon).toBeUndefined()
   })
 
@@ -42,14 +43,17 @@ describe('Apple-Pass der Stammkundenkarte', () => {
     expect(card?.headerFields).toEqual([
       { key: 'status', label: 'Status', value: 'Stammkunde', textAlignment: 'PKTextAlignmentRight' },
     ])
-    // Ohne Beschriftung — Wallet setzte sie sonst unter den Namen.
-    expect(card?.primaryFields).toEqual([{ key: 'holder', value: 'Erika Musterfrau' }])
+    expect(card?.primaryFields).toEqual([{ key: 'holder', label: 'Name', value: 'Erika Musterfrau' }])
     expect(JSON.stringify(card)).not.toContain('/10')
   })
 
-  it('nennt den Vorteil und das Mitgliedsdatum, den Namen nicht doppelt', () => {
-    expect(card?.secondaryFields).toContainEqual({ key: 'reward', label: 'Vorteil', value: '10 % auf alle Getränke' })
-    expect(card?.auxiliaryFields).toEqual([{ key: 'member-since', label: 'Mitglied seit', value: '09.10.2026' }])
+  it('nennt Vorteil, Programm und Mitgliedsdatum in einer Zeile, den Namen nicht doppelt', () => {
+    expect(card?.secondaryFields).toEqual([
+      { key: 'reward', label: 'Vorteil', value: '10 % auf alle Getränke' },
+      { key: 'program', label: 'Programm', value: 'Finca Stammkunden' },
+      { key: 'member-since', label: 'Mitglied seit', value: '09.10.2026' },
+    ])
+    expect(card?.auxiliaryFields).toEqual([])
   })
 
   it('trägt die Kartennummer im Barcode — daran prüft die Kasse', () => {

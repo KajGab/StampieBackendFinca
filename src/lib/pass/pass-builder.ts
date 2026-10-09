@@ -22,8 +22,8 @@ export interface PassBuilder {
 export interface CardDesign extends CardDesignInput {
   cardId: string
   /**
-   * Decides the wallet pass type: loyalty/storeCard for STAMP and MEMBER, offer/coupon for
-   * COUPON. MEMBER is a storeCard without the stamp row.
+   * Decides the wallet pass type: loyalty/storeCard for STAMP, offer/coupon for COUPON,
+   * loyalty/generic for MEMBER (no stamp row, "Name" above the customer's name).
    */
   kind: CardKind
   /** MEMBER only: the name the customer gave when adding the card. */

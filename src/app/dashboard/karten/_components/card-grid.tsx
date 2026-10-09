@@ -427,6 +427,9 @@ function CardTile({
               className="flex flex-col justify-center gap-0.5 overflow-hidden px-3 pb-3"
               style={{ aspectRatio: String(375 / 123), color: preview?.foregroundColor ?? '#ffffff' }}
             >
+              <span className="text-[10px] uppercase tracking-[0.06em]" style={{ color: preview?.labelColor ?? '#cccccc' }}>
+                Name
+              </span>
               <span className="text-[20px] font-normal leading-tight opacity-60">Name des Kunden</span>
               {preview?.rewardText?.trim() ? (
                 <span className="mt-1 line-clamp-1 text-[12.5px] leading-snug opacity-90">

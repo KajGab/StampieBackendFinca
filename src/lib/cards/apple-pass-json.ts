@@ -11,7 +11,8 @@ import {
 } from './schema'
 
 /**
- * CardDesign -> pass.json for a `storeCard`.
+ * CardDesign -> pass.json for a `storeCard` (Stempelkarte), `coupon` (Gutschein) or
+ * `generic` (Stammkundenkarte).
  *
  * Field-area budget (PassKit, storeCard):
  *   headerFields     max 3, very narrow  -> stamp counter "6/10"
@@ -75,9 +76,12 @@ export interface PassJson {
    * Exactly one of these is set — the key *is* the pass style, and Wallet picks the layout
    * from it. `storeCard` puts the strip image behind the primary field, which is what a
    * stamp row needs; `coupon` is the style Apple intends for a single-use offer.
+   * `generic` trägt die Stammkundenkarte: nur dort steht die Beschriftung des großen Felds
+   * *über* dem Wert („Name" über dem Namen) — storeCard und coupon setzen sie darunter.
    */
   storeCard?: StoreCardStructure
   coupon?: StoreCardStructure
+  generic?: StoreCardStructure
   locations?: PassLocation[]
   maxDistance?: number
   expirationDate?: string
@@ -174,15 +178,13 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
   // The offer itself belongs in primaryFields — on a coupon that is the line Wallet sets
   // in the largest type. A storeCard hides primaryFields behind the strip, so it stays
   // empty there and the stamp grid keeps the space.
-  // Ohne Stempelreihe zeigt eine storeCard ihre primaryFields — dort steht bei der
-  // Stammkundenkarte der Name, damit das Personal ihn auf einen Blick vergleichen kann.
-  // Ohne Beschriftung: Wallet setzt sie bei primaryFields immer *unter* den Wert, und ein
-  // „Name" unter dem Namen liest sich verkehrt herum. „Stammkunde" steht ja schon oben.
+  // Bei der Stammkundenkarte steht hier groß der Name, damit das Personal ihn auf einen
+  // Blick vergleichen kann — im Stil `generic` mit „Name" darüber.
   const primaryFields: PassField[] =
     isCoupon && design.offerTitle?.trim()
       ? [{ key: 'offer', value: design.offerTitle.trim() }]
       : isMember && ctx.customerName?.trim()
-        ? [{ key: 'holder', value: ctx.customerName.trim() }]
+        ? [{ key: 'holder', label: 'Name', value: ctx.customerName.trim() }]
         : []
 
   const secondaryFields: PassField[] = []
@@ -209,11 +211,12 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
     auxiliaryFields.push({ key: 'customer', label: 'Kunde', value: ctx.customerName })
   }
   if (ctx.memberSince && !isCoupon) {
-    auxiliaryFields.push({
-      key: 'member-since',
-      label: 'Mitglied seit',
-      value: formatGermanDate(ctx.memberSince),
-    })
+    // Bei der Stammkundenkarte in dieselbe Zeile wie Vorteil und Programm: `generic` setzt
+    // secondary- und auxiliaryFields je nach iOS mal in eine, mal in zwei Zeilen — so
+    // sieht sie überall gleich aus, und die Vorschau im Dashboard stimmt.
+    const since = { key: 'member-since', label: 'Mitglied seit', value: formatGermanDate(ctx.memberSince) }
+    if (isMember) secondaryFields.push(since)
+    else auxiliaryFields.push(since)
   }
 
   const backFields: PassField[] = design.backFields.map((f) => ({
@@ -301,8 +304,8 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
     labelColor: toPassKitRgb(design.labelColor),
     barcode,
     barcodes: [barcode],
-    // The style key decides the layout, so exactly one of the two is ever present.
-    ...(isCoupon ? { coupon: structure } : { storeCard: structure }),
+    // The style key decides the layout, so exactly one of them is ever present.
+    ...(isCoupon ? { coupon: structure } : isMember ? { generic: structure } : { storeCard: structure }),
   }
 
   if (design.cardTitle?.trim()) {

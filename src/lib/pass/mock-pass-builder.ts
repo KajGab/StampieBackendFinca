@@ -54,6 +54,8 @@ export class MockPassBuilder implements PassBuilder {
       teamIdentifier: this.config.teamIdentifier,
       barcodeMessage: this.barcodeMessage(serial),
       kind: design.kind,
+      customerName: design.holderName ?? null,
+      memberSince: design.memberSince ?? null,
       message: design.message ?? null,
       marketingConsent: design.marketingConsent ?? false,
       webService: authenticationToken
@@ -65,9 +67,10 @@ export class MockPassBuilder implements PassBuilder {
       { name: 'pass.json', data: Buffer.from(JSON.stringify(passJson, null, 2), 'utf8') },
     ]
 
-    // A coupon has no stamp row. Bundling one would not just waste three renders — Wallet
-    // would draw an empty grid across a pass that never counts anything.
-    if (design.kind !== 'COUPON') {
+    // Only a stamp card has a stamp row. Bundling one on a coupon or a member card would not
+    // just waste three renders — Wallet would draw an empty grid across a pass that never
+    // counts anything, and on a member card it would hide the name behind it.
+    if (design.kind === 'STAMP') {
       // Regenerated for this exact stamp count — the whole reason the renderer is server-side.
       const strip = await renderStripImageSet(design, design.currentStamps, {
         customIconPng: design.assets.stampIcon,

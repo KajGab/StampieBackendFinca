@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
       id: c.id,
       name: c.name,
       programName: source?.programName?.trim() || c.name,
-      /** Stempel- oder Gutscheinkarte — die App zeigt das beim Ausgeben an. */
+      /** Stempel-, Gutschein- oder Stammkundenkarte (STAMP/COUPON/MEMBER) — die App zeigt das beim Ausgeben an. */
       kind: c.kind,
       stampGoal: source?.stampGoal ?? 10,
       /** Nur bei Gutscheinkarten sinnvoll, z. B. "20 % auf alles". */

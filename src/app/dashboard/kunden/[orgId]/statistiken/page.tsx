@@ -183,6 +183,27 @@ export default async function StatistikPage({ params }: { params: Promise<{ orgI
             ))
           )}
         </section>
+        <section className="space-y-3">
+          <SectionTitle
+            title="Stammkundenkarten"
+            hint="Besuche zählen höchstens einmal pro Karte und Tag."
+          />
+          {stats.members.length === 0 ? (
+            <Empty>Keine Stammkundenkarte.</Empty>
+          ) : (
+            stats.members.map((m) => (
+              <Panel key={m.id}>
+                <h3 className="text-[14px] font-semibold text-ink">{m.name}</h3>
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <StatTile label="Stammkunden" value={m.members} hint={`${m.newThisMonth} neu in diesem Monat`} compact />
+                  <StatTile label="Diesen Monat da" value={m.activeThisMonth} compact />
+                  <StatTile label="Besuche diesen Monat" value={m.visitsThisMonth} compact />
+                  <StatTile label="Gesperrt" value={m.blocked} compact />
+                </div>
+              </Panel>
+            ))
+          )}
+        </section>
       </main>
     </div>
   )

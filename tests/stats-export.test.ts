@@ -26,20 +26,25 @@ const stats: OrgStats = {
     { id: 'c2', kind: 'COUPON', name: 'Geburtstag', stampGoal: 10, customers: 0, full: 0, redeemed: 0, distribution: [] },
   ],
   coupons: [{ id: 'c2', name: '=HYPERLINK("x")', issued: 9, redeemed: 4, open: 5 }],
+  members: [
+    { id: 'c3', name: 'Stammgäste', members: 12, newThisMonth: 2, blocked: 1, visitsThisMonth: 30, activeThisMonth: 8 },
+  ],
 }
 
 const generatedAt = new Date(Date.UTC(2026, 9, 5, 12, 30))
 const sheets = statsSheets(stats, 'Café Nord', generatedAt)
 
 describe('statsSheets', () => {
-  it('legt fünf Tabellen an, Gutscheinkarten nicht unter den Stempelkarten', () => {
+  it('legt sechs Tabellen an, Gutschein- und Stammkundenkarten nicht unter den Stempelkarten', () => {
     expect(sheets.map((s) => s.name)).toEqual([
       'Übersicht',
       'Neue Kunden pro Woche',
       'Stempelkarten',
       'Stempelstand',
       'Gutscheinkarten',
+      'Stammkundenkarten',
     ])
+    expect(sheets.at(-1)?.rows[1]).toEqual(['Stammgäste', 12, 2, 30, 8, 1])
     const stamp = sheets.find((s) => s.name === 'Stempelkarten') as Sheet
     expect(stamp.rows).toHaveLength(2)
     expect(sheets[0]?.rows[1]).toEqual(['Stand', '05.10.2026, 14:30 Uhr'])
@@ -73,7 +78,7 @@ describe('toXlsx', () => {
     for (const part of ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/styles.xml']) {
       expect(text).toContain(part)
     }
-    for (let i = 1; i <= 5; i++) expect(text).toContain(`xl/worksheets/sheet${i}.xml`)
+    for (let i = 1; i <= 6; i++) expect(text).toContain(`xl/worksheets/sheet${i}.xml`)
     expect(text).toContain('<sheet name="Übersicht" sheetId="1" r:id="rId1"/>')
   })
 

@@ -84,9 +84,16 @@ export function buildGoogleContext(
     currentStamps: design.currentStamps,
     barcodeMessage: `${config.appUrl}/s/${serial}`,
     marketingConsent: design.marketingConsent ?? false,
+    kind: design.kind,
+    customerName: design.holderName ?? null,
+    memberSince: design.memberSince ?? null,
     // Never the raw asset: it is 160x50 for Apple, which Google would crop to a sliver.
     logoUrl: null,
-    heroUrl: walletHeroUrl(config.appUrl, design.cardId, design, design.currentStamps),
+    // The hero is the rendered stamp row — a member card has none to show.
+    heroUrl:
+      design.kind === 'MEMBER'
+        ? null
+        : walletHeroUrl(config.appUrl, design.cardId, design, design.currentStamps),
     fallbackLogoUrl: walletLogoUrl(config.appUrl, design.cardId, design),
   }
 }

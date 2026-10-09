@@ -118,6 +118,9 @@ model Membership {
 enum CardKind {
   STAMP
   COUPON
+  /// Stammkundenkarte: sieht aus wie eine Stempelkarte ohne Stempel, trägt den Namen des
+  /// Kunden und wird an der Kasse geprüft (gültig/gesperrt) statt gestempelt.
+  MEMBER
 }
 
 /// A stamp card programme. The unit the agency creates, hands to a customer and designs.
@@ -495,6 +498,13 @@ model IssuedPass {
   /// Zähler, der zurückgesetzt werden müsste.
   stampUnlockedAt DateTime?
 
+  /// Stammkundenkarte: der Name, den der Kunde beim Hinzufügen angegeben hat. Steht auf der
+  /// Karte und wird an der Kasse beim Prüfen angezeigt, damit das Personal vergleichen kann.
+  holderName String?
+  /// Stammkundenkarte: vom Betrieb gesperrt. Eine gesperrte Karte gilt an der Kasse als
+  /// ungültig; der Pass bleibt im Wallet, damit nichts still verschwindet.
+  blockedAt  DateTime?
+
   /// Nachricht nur für diesen Pass, gesetzt beim Versand an eine Gruppe.
   ///
   /// Apple kennt keinen freien Push: eine Meldung entsteht, weil sich ein Feld ändert.
@@ -572,6 +582,8 @@ model AppleDeviceRegistration {
 enum StampEventKind {
   STAMP
   REDEEM
+  /// Besuch eines Stammkunden: Stammkundenkarte an der Kasse geprüft, höchstens einmal pro Tag.
+  VISIT
 }
 
 /// Audit trail. Every stamp is attributable — who booked it, on which card, when.

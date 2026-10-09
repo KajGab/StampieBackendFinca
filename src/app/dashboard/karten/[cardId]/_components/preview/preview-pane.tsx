@@ -9,6 +9,7 @@ import { GoogleLoyaltyCard } from './google-loyalty-card'
 import { GoogleLoyaltyCardBack } from './google-loyalty-card-back'
 import { GoogleOfferCard } from './google-offer-card'
 import { GoogleOfferCardBack } from './google-offer-card-back'
+import { AppleMemberCard, GoogleMemberCard } from './member-card'
 import { PreviewControls } from './preview-controls'
 import { useCardEditor } from '@/stores/card-editor-provider'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -69,7 +70,19 @@ export function PreviewPane({
         data-theme={theme}
       >
         <div ref={cardRef} className="p-2">
-          {kind === 'COUPON' ? (
+          {kind === 'MEMBER' ? (
+            platform === 'apple' ? (
+              side === 'front' ? (
+                <AppleMemberCard design={design} logoUrl={logoUrl} organizationName={organizationName} />
+              ) : (
+                <AppleStoreCardBack design={design} />
+              )
+            ) : side === 'front' ? (
+              <GoogleMemberCard design={design} logoUrl={googleLogoUrl} organizationName={organizationName} />
+            ) : (
+              <GoogleLoyaltyCardBack design={design} />
+            )
+          ) : kind === 'COUPON' ? (
             platform === 'apple' ? (
               side === 'front' ? (
                 <AppleCouponCard

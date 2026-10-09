@@ -97,8 +97,10 @@ export async function syncGoogleClass(
     currentStamps: 0,
     barcodeMessage: `${base}/s/unused`,
     logoUrl: null,
-    heroUrl: walletHeroUrl(base, cardId, design, 0),
+    // Die Stammkundenkarte hat keine Stempelreihe, also auch kein Hero-Bild daraus.
+    heroUrl: kind === 'MEMBER' ? null : walletHeroUrl(base, cardId, design, 0),
     fallbackLogoUrl: walletLogoUrl(base, cardId, design),
+    kind,
   }
 
   // Coupons live under a different resource entirely — patching an offer class through

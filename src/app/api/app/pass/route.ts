@@ -35,6 +35,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       stamps: true,
       kind: true,
       cardId: true,
+      holderName: true,
+      blockedAt: true,
+      createdAt: true,
       card: { select: { name: true, orgId: true } },
     },
   })
@@ -62,6 +65,19 @@ export async function GET(request: NextRequest): Promise<Response> {
     stamps: pass.stamps,
     stampGoal,
     /** Ab hier bietet die Kasse „Einlösen" statt „Stempeln" an. */
-    full: pass.stamps >= stampGoal,
+    full: pass.kind === 'STAMP' && pass.stamps >= stampGoal,
+    /**
+     * Stammkundenkarte: wird nicht gestempelt, sondern über `/api/app/member/check`
+     * geprüft (dort wird auch der Besuch gezählt). Hier nur lesend, ohne Besuch.
+     */
+    ...(pass.kind === 'MEMBER'
+      ? {
+          member: {
+            holderName: pass.holderName,
+            memberSince: pass.createdAt.toISOString(),
+            blocked: pass.blockedAt !== null,
+          },
+        }
+      : {}),
   })
 }

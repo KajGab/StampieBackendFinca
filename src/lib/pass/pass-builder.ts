@@ -21,8 +21,15 @@ export interface PassBuilder {
  */
 export interface CardDesign extends CardDesignInput {
   cardId: string
-  /** Decides the wallet pass type: loyalty/storeCard for STAMP, offer/coupon for COUPON. */
+  /**
+   * Decides the wallet pass type: loyalty/storeCard for STAMP and MEMBER, offer/coupon for
+   * COUPON. MEMBER is a storeCard without the stamp row.
+   */
   kind: CardKind
+  /** MEMBER only: the name the customer gave when adding the card. */
+  holderName?: string | null
+  /** MEMBER only: when the card was issued — shown as „Mitglied seit". */
+  memberSince?: Date | null
   organizationName: string
   /** COUPON only: a redeemed coupon is issued in its retired state, not as a fresh one. */
   redeemed?: boolean

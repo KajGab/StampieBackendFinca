@@ -22,6 +22,8 @@ export function CouponTab() {
   const patch = useCardEditor((s) => s.patch)
 
   const isRewardCoupon = kind === 'STAMP'
+  // Eine Stammkundenkarte gibt weder Gutscheine aus noch ist sie einer.
+  if (kind === 'MEMBER') return null
   // On a stamp card the fields only matter once the reward coupon is switched on.
   const fieldsActive = !isRewardCoupon || design.rewardCouponEnabled
 

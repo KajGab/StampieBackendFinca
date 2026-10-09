@@ -48,6 +48,9 @@ export interface PassRecord {
   lastRewardAt: string | null
   redeemedAt: string | null
   hasActiveMessage: boolean
+  /** Stammkundenkarte: der gespeicherte Name und ob die Karte gesperrt ist. */
+  holderName: string | null
+  blockedAt: string | null
   appleDevices: number
   reminderDeliveries: number
   events: StampEntry[]
@@ -63,7 +66,7 @@ export async function lookupPassAction(serial: string): Promise<ActionResult<Pas
       select: {
         id: true, serial: true, kind: true, isTest: true, stamps: true, stampGoal: true,
         rewardCount: true, createdAt: true, updatedAt: true, lastRewardAt: true,
-        redeemedAt: true, activeMessage: true, cardId: true,
+        redeemedAt: true, activeMessage: true, cardId: true, holderName: true, blockedAt: true,
         card: { select: { name: true, org: { select: { name: true } } } },
       },
     })
@@ -96,6 +99,8 @@ export async function lookupPassAction(serial: string): Promise<ActionResult<Pas
       lastRewardAt: pass.lastRewardAt?.toISOString() ?? null,
       redeemedAt: pass.redeemedAt?.toISOString() ?? null,
       hasActiveMessage: pass.activeMessage !== null,
+      holderName: pass.holderName,
+      blockedAt: pass.blockedAt?.toISOString() ?? null,
       appleDevices,
       reminderDeliveries,
       events: events.map((e) => ({

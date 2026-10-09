@@ -15,6 +15,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { pushAppleWalletUpdate } from '@/lib/wallet/apple-sync'
 import { syncGoogleStampCount } from '@/lib/wallet/google-sync'
 import { loadPublishedDesign } from '@/lib/cards/repository'
+import { checkMemberCard, describeMemberCheck } from '@/lib/cards/member-check'
 
 export const runtime = 'nodejs'
 
@@ -77,6 +78,7 @@ export async function POST(request: Request): Promise<Response> {
       stamps: true,
       stampGoal: true,
       stampUnlockedAt: true,
+      kind: true,
       cardId: true,
       card: { select: { orgId: true } },
     },
@@ -100,6 +102,30 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json(
       { error: 'Diese Karte gehört nicht zu deinem Betrieb.', code: 'forbidden' },
       { status: 403 },
+    )
+  }
+
+  /*
+   * Stammkundenkarte: wird nicht gestempelt, sondern geprüft — und der Besuch gezählt.
+   *
+   * Die App kennt dafür `/api/app/member/check`. Ein älterer Stand der App schickt den
+   * Scan aber hierher; dann wird trotzdem geprüft und das Ergebnis als klare Meldung
+   * zurückgegeben, statt einer Stammkundenkarte einen Stempel zu verpassen.
+   */
+  if (pass.kind === 'MEMBER') {
+    const check = await checkMemberCard({
+      serial,
+      scope: { orgId: appUser.orgId },
+      userId: appUser.userId,
+    })
+    return NextResponse.json(
+      {
+        error: `${describeMemberCheck(check)} Stammkundenkarten werden geprüft, nicht gestempelt.`,
+        code: 'member_card',
+        valid: check.valid,
+        holderName: check.member?.holderName ?? null,
+      },
+      { status: 409 },
     )
   }
 

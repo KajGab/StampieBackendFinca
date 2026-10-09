@@ -83,7 +83,13 @@ export async function createCardAction(input: unknown): Promise<ActionResult<{ c
       parsed.data.kind === 'STAMP' && parsed.data.templateId
         ? getTemplate(parsed.data.templateId)
         : undefined
-    const design = template ? templateAsDesign(template) : DEFAULT_CARD_DESIGN
+    // Die Stammkundenkarte braucht zum Veröffentlichen einen Programmnamen — der Kartenname
+    // ist dafür ein guter Anfang, statt mit einem leeren Pflichtfeld zu starten.
+    const design = template
+      ? templateAsDesign(template)
+      : parsed.data.kind === 'MEMBER'
+        ? { ...DEFAULT_CARD_DESIGN, programName: parsed.data.name.trim().slice(0, 30) }
+        : DEFAULT_CARD_DESIGN
 
     const card = await prisma.card.create({
       data: {

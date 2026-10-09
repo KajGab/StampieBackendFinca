@@ -28,6 +28,8 @@ export async function rebuildIssuedPass(serial: string): Promise<Buffer | null> 
       cardId: true,
       activeMessage: true,
       marketingConsentAt: true,
+      holderName: true,
+      createdAt: true,
       card: {
         select: { name: true, org: { select: { name: true } } },
       },
@@ -64,6 +66,8 @@ export async function rebuildIssuedPass(serial: string): Promise<Buffer | null> 
       message: pass.activeMessage,
       // Traegt den Widerruf-Link auf die Rueckseite — automatisch, ohne Zutun im Designer.
       marketingConsent: pass.marketingConsentAt !== null,
+      // Stammkundenkarte: Name und „Mitglied seit" muessen jede Aktualisierung ueberleben.
+      ...(pass.kind === 'MEMBER' ? { holderName: pass.holderName, memberSince: pass.createdAt } : {}),
     },
     pass.serial,
   )

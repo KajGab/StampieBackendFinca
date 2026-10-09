@@ -1,6 +1,6 @@
 import { toGoogleHex } from '@/lib/color/convert'
 import { resolveIssuerName } from './issuer'
-import { activeGeoLocations, type CardDesignInput } from './schema'
+import { activeGeoLocations, type CardDesignInput, type CardKind } from './schema'
 
 /**
  * CardDesign -> Google Wallet LoyaltyClass / LoyaltyObject.
@@ -67,7 +67,7 @@ export interface LoyaltyObject {
   state: 'ACTIVE' | 'EXPIRED' | 'INACTIVE'
   accountId?: string
   accountName?: string
-  loyaltyPoints: {
+  loyaltyPoints?: {
     label: string
     /*
      * Als Text, nicht als Zahl.
@@ -115,6 +115,10 @@ export interface BuildGoogleContext {
    */
   heroUrl?: string | null
   customerName?: string | null
+  /** STAMP (default) or MEMBER — a member card is a loyalty pass without points. */
+  kind?: CardKind
+  /** MEMBER only: shown as „Mitglied seit". */
+  memberSince?: Date | null
 }
 
 function image(uri: string, description: string): GoogleImageUri {
@@ -125,9 +129,15 @@ function image(uri: string, description: string): GoogleImageUri {
 }
 
 export function buildLoyaltyClass(design: CardDesignInput, ctx: BuildGoogleContext): LoyaltyClass {
+  const isMember = ctx.kind === 'MEMBER'
   const textModules: GoogleTextModule[] = []
   if (design.rewardText.trim()) {
-    textModules.push({ id: 'reward', header: 'Belohnung', body: design.rewardText.trim() })
+    // Auf der Stammkundenkarte ist es kein Lohn für volle Karten, sondern der Vorteil.
+    textModules.push({
+      id: 'reward',
+      header: isMember ? 'Vorteil' : 'Belohnung',
+      body: design.rewardText.trim(),
+    })
   }
   for (const f of design.backFields) {
     if (f.type === 'url' || f.type === 'phone') continue
@@ -146,7 +156,7 @@ export function buildLoyaltyClass(design: CardDesignInput, ctx: BuildGoogleConte
     id: `${ctx.issuerId}.${ctx.classSuffix}`,
     // The one line Google always prints on the card face — see `resolveIssuerName`.
     issuerName: resolveIssuerName(design, ctx.issuerName),
-    programName: design.programName.trim() || 'Stempelkarte',
+    programName: design.programName.trim() || (isMember ? 'Stammkundenkarte' : 'Stempelkarte'),
     reviewStatus: 'UNDER_REVIEW',
     hexBackgroundColor: toGoogleHex(design.backgroundColor),
     multipleDevicesAndHoldersAllowedStatus: design.shareable ? 'MULTIPLE_HOLDERS' : 'ONE_USER_ALL_DEVICES',
@@ -156,7 +166,7 @@ export function buildLoyaltyClass(design: CardDesignInput, ctx: BuildGoogleConte
   // "Something went wrong", so fall back to a generated mark rather than omitting it.
   const logoUrl = ctx.logoUrl ?? ctx.fallbackLogoUrl
   if (logoUrl) cls.programLogo = image(logoUrl, 'Logo')
-  if (ctx.heroUrl) cls.heroImage = image(ctx.heroUrl, 'Stempelkarte')
+  if (ctx.heroUrl && !isMember) cls.heroImage = image(ctx.heroUrl, 'Stempelkarte')
   if (textModules.length > 0) cls.textModulesData = textModules
   if (links.length > 0) cls.linksModuleData = { uris: links }
   const geoLocations = activeGeoLocations(design)
@@ -166,6 +176,8 @@ export function buildLoyaltyClass(design: CardDesignInput, ctx: BuildGoogleConte
 
   // Google Wallet optional labels
   if (design.accountNameLabel) cls.accountNameLabel = design.accountNameLabel
+  // Der Name steht bei der Stammkundenkarte immer drauf — er braucht eine Beschriftung.
+  else if (isMember) cls.accountNameLabel = 'Name'
   if (design.accountIdLabel) cls.accountIdLabel = design.accountIdLabel
   if (design.rewardsTierLabel) cls.rewardsTierLabel = design.rewardsTierLabel
   if (design.googleRewardsTierEnabled && design.rewardsTier) {
@@ -176,6 +188,7 @@ export function buildLoyaltyClass(design: CardDesignInput, ctx: BuildGoogleConte
 }
 
 export function buildLoyaltyObject(design: CardDesignInput, ctx: BuildGoogleContext): LoyaltyObject {
+  const isMember = ctx.kind === 'MEMBER'
   const stamps = Math.max(0, Math.min(design.stampGoal, ctx.currentStamps))
 
   const obj: LoyaltyObject = {
@@ -183,10 +196,17 @@ export function buildLoyaltyObject(design: CardDesignInput, ctx: BuildGoogleCont
     classId: `${ctx.issuerId}.${ctx.classSuffix}`,
     state: 'ACTIVE',
     accountId: ctx.serial,
-    loyaltyPoints: {
-      label: design.stampLabel,
-      balance: { string: stamps + '/' + design.stampGoal },
-    },
+    /*
+     * Die Stammkundenkarte zählt nichts. Auf ihrem Platz für den Stand steht deshalb der
+     * Name: `accountName` zeigt Google nur in den Details, nicht auf der Vorderseite — und
+     * das Personal soll den Namen an der Kasse ohne Antippen sehen, wie bei Apple.
+     */
+    loyaltyPoints: isMember
+      ? { label: 'Stammkunde', balance: { string: ctx.customerName?.trim() || 'Stammkunde' } }
+      : {
+          label: design.stampLabel,
+          balance: { string: stamps + '/' + design.stampGoal },
+        },
     barcode: {
       type: BARCODE_MAP[design.barcodeFormat],
       value: ctx.barcodeMessage,
@@ -211,8 +231,23 @@ export function buildLoyaltyObject(design: CardDesignInput, ctx: BuildGoogleCont
     })
   }
 
-  if (ctx.customerName && design.googleAccountNameEnabled) obj.accountName = ctx.customerName
-  if (ctx.heroUrl) obj.heroImage = image(ctx.heroUrl, 'Stempelkarte')
+  // Bei der Stammkundenkarte ist der Name der Kern der Karte, nicht eine Option im Designer.
+  if (ctx.customerName && (isMember || design.googleAccountNameEnabled)) {
+    obj.accountName = ctx.customerName
+  }
+  if (isMember && ctx.memberSince) {
+    obj.textModulesData.unshift({
+      id: 'member-since',
+      header: 'Mitglied seit',
+      body: ctx.memberSince.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'Europe/Berlin',
+      }),
+    })
+  }
+  if (ctx.heroUrl && !isMember) obj.heroImage = image(ctx.heroUrl, 'Stempelkarte')
   if (design.expiresAt) {
     obj.validTimeInterval = { end: { date: design.expiresAt.toISOString() } }
   }

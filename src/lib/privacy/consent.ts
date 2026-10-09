@@ -82,3 +82,25 @@ export const DEVICE_PARAM = 'd'
 export function isValidDeviceKey(value: string | null): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{32,128}$/.test(value)
 }
+
+/**
+ * Der Name auf einer Stammkundenkarte.
+ *
+ * Der Kunde tippt ihn auf der Ausgabeseite selbst ein; er steht danach auf der Karte und
+ * wird an der Kasse beim Prüfen angezeigt. Deshalb nur, was ein Name braucht: keine
+ * Steuerzeichen, Leerraum zusammengezogen, 2 bis 60 Zeichen. Alles andere gilt als
+ * „kein Name" — die Seite lässt dann gar nicht erst hinzufügen.
+ */
+export const HOLDER_NAME_PARAM = 'n'
+export const HOLDER_NAME_MAX = 60
+
+export function parseHolderName(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const cleaned = value
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (cleaned.length < 2 || cleaned.length > HOLDER_NAME_MAX) return null
+  return cleaned
+}

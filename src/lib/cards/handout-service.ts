@@ -133,13 +133,31 @@ export async function resolveHandoutCode(code: string): Promise<ResolvedHandout 
 export async function findPassForDevice(
   resolved: ResolvedHandout,
   deviceKey: string,
-): Promise<{ serial: string; currentStamps: number } | null> {
+): Promise<IssuedForDevice | null> {
   const existing = await prisma.issuedPass.findFirst({
     where: { cardId: resolved.cardId, deviceKey, isTest: false, kind: resolved.kind },
-    select: { serial: true, stamps: true },
+    select: { id: true, serial: true, stamps: true, holderName: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
-  return existing ? { serial: existing.serial, currentStamps: existing.stamps } : null
+  return existing
+    ? {
+        id: existing.id,
+        serial: existing.serial,
+        currentStamps: existing.stamps,
+        holderName: existing.holderName,
+        issuedAt: existing.createdAt,
+      }
+    : null
+}
+
+interface IssuedForDevice {
+  id: string
+  serial: string
+  currentStamps: number
+  /** Stammkundenkarte: der gespeicherte Name. */
+  holderName: string | null
+  /** Ausgabezeitpunkt — auf der Stammkundenkarte „Mitglied seit". */
+  issuedAt: Date
 }
 
 export async function issuePassForDevice(
@@ -154,9 +172,25 @@ export async function issuePassForDevice(
    * wieder und wird auch nicht als Einwilligung vermerkt.
    */
   recognized = false,
-): Promise<{ serial: string; currentStamps: number; created: boolean }> {
+  /** Stammkundenkarte: der Name, den der Kunde auf der Ausgabeseite eingetragen hat. */
+  holderName: string | null = null,
+): Promise<{
+  serial: string
+  currentStamps: number
+  created: boolean
+  holderName: string | null
+  issuedAt: Date
+}> {
   const existing = await findPassForDevice(resolved, deviceKey)
-  if (existing) return { ...existing, created: false }
+  if (existing) {
+    // Eine wiedererkannte Karte behält ihren Namen — sie ist dieselbe Karte. Nur eine, die
+    // noch keinen hat, bekommt den jetzt eingetragenen.
+    if (resolved.kind === 'MEMBER' && !existing.holderName && holderName) {
+      await prisma.issuedPass.update({ where: { id: existing.id }, data: { holderName } })
+      return { ...existing, holderName, created: false }
+    }
+    return { ...existing, created: false }
+  }
 
   const pass = await prisma.issuedPass.create({
     data: {
@@ -170,11 +204,18 @@ export async function issuePassForDevice(
       // Ohne Häkchen bleiben beide Felder null — und null heißt überall "keine Werbung".
       ...(marketingConsent ? consentRecord() : {}),
       ...(recognized ? recognitionRecord() : {}),
+      ...(resolved.kind === 'MEMBER' ? { holderName } : {}),
     },
-    select: { serial: true },
+    select: { serial: true, holderName: true, createdAt: true },
   })
 
-  return { serial: pass.serial, currentStamps: resolved.startStamps, created: true }
+  return {
+    serial: pass.serial,
+    currentStamps: resolved.startStamps,
+    created: true,
+    holderName: pass.holderName,
+    issuedAt: pass.createdAt,
+  }
 }
 
 /** Assembles what the PassBuilder needs, assets and update token included. */
@@ -183,6 +224,8 @@ export async function toHandoutDesign(
   currentStamps: number,
   serial: string,
   marketingConsent = false,
+  /** Stammkundenkarte: Name und Ausgabezeitpunkt für die Karte. */
+  member: { holderName: string | null; issuedAt: Date } | null = null,
 ): Promise<CardDesign> {
   const [assets, appleAuthToken] = await Promise.all([
     loadPassAssets(resolved.design, resolved.cardId),
@@ -197,5 +240,8 @@ export async function toHandoutDesign(
     assets,
     appleAuthToken,
     marketingConsent,
+    ...(resolved.kind === 'MEMBER' && member
+      ? { holderName: member.holderName, memberSince: member.issuedAt }
+      : {}),
   }
 }

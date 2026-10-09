@@ -30,6 +30,10 @@ export default async function ScanLandingPage({
       stampGoal: true,
       cardId: true,
       marketingConsentAt: true,
+      kind: true,
+      holderName: true,
+      blockedAt: true,
+      createdAt: true,
       card: { select: { name: true, orgId: true, org: { select: { name: true } } } },
     },
   })
@@ -53,6 +57,32 @@ export default async function ScanLandingPage({
     if (membership) {
       redirect(`/dashboard/karten/${pass.cardId}/stempeln?serial=${pass.serial}`)
     }
+  }
+
+  // Stammkundenkarte: kein Stempelstand, sondern wem sie gehört und ob sie gilt.
+  if (pass.kind === 'MEMBER') {
+    return (
+      <Shell title={pass.card.org?.name ?? pass.card.name}>
+        <p className="text-[13px] text-ink-2">Deine Stammkundenkarte</p>
+        <p className="mt-2 text-2xl font-semibold text-ink">{pass.holderName ?? 'Ohne Namen'}</p>
+        <p className="mt-1 text-[13px] text-ink-3">
+          Mitglied seit{' '}
+          {pass.createdAt.toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'Europe/Berlin',
+          })}
+        </p>
+        <p className={`mt-4 text-[14px] font-medium ${pass.blockedAt ? 'text-danger' : 'text-ok'}`}>
+          {pass.blockedAt ? 'Diese Karte ist gesperrt.' : 'Gültig'}
+        </p>
+        <p className="mt-5 text-[13px] leading-snug text-ink-3">
+          Zeig diese Karte an der Kasse vor — das Personal prüft sie.
+        </p>
+        {pass.marketingConsentAt ? <ConsentWithdraw serial={pass.serial} /> : null}
+      </Shell>
+    )
   }
 
   return (

@@ -39,7 +39,7 @@ export const emptyStampStyleSchema = z.enum(EMPTY_STAMP_STYLES)
  * loyalty vs. offer, Apple storeCard vs. coupon) and is baked into every pass already
  * sitting in a customer's wallet, so switching later would orphan all of them.
  */
-export const CARD_KINDS = ['STAMP', 'COUPON'] as const
+export const CARD_KINDS = ['STAMP', 'COUPON', 'MEMBER'] as const
 export type CardKind = (typeof CARD_KINDS)[number]
 export const cardKindSchema = z.enum(CARD_KINDS)
 
@@ -307,7 +307,7 @@ export interface PublishContext {
 /**
  * Publish requirements, branched by card kind.
  *
- * Everything a wallet or German law demands applies to both kinds — icon, imprint, privacy,
+ * Everything a wallet or German law demands applies to every kind — icon, imprint, privacy,
  * a sane expiry, readable contrast. Only the content differs: a stamp card is meaningless
  * without a goal and a reward, a coupon without an offer title, and demanding the other
  * kind's fields would block publishing on something the pass never shows.
@@ -339,6 +339,16 @@ export function buildPublishSchema(ctxInput: PublishContext) {
           path: ['offerTitle'],
           message:
             'Die volle Karte soll einen Gutschein ausgeben — dafür fehlt noch der Gutschein-Titel.',
+        })
+      }
+    } else if (kind === 'MEMBER') {
+      // Die Stammkundenkarte zeigt den Programmnamen als ihren Titel — ohne ihn stünde im
+      // Wallet nur „Stammkundenkarte" ohne Bezug zum Betrieb.
+      if (design.programName.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['programName'],
+          message: 'Ohne Programmnamen kann die Karte nicht veröffentlicht werden.',
         })
       }
     } else {

@@ -7,7 +7,10 @@ import {
   CONSENT_PARAM,
   CONSENT_TEXT,
   DEVICE_PARAM,
+  HOLDER_NAME_MAX,
+  HOLDER_NAME_PARAM,
   RECOGNITION_TEXT,
+  parseHolderName,
 } from '@/lib/privacy/consent'
 
 /**
@@ -36,13 +39,23 @@ export function WalletChoice({
   code,
   platform,
   imprintUrl,
+  requireName = false,
 }: {
   code: string
   platform: string | null
   /** Impressum des Betriebs, falls hinterlegt. */
   imprintUrl: string | null
+  /**
+   * Stammkundenkarte: der Name steht auf der Karte und wird an der Kasse angezeigt. Ohne
+   * ihn bleiben die Wallet-Knöpfe gesperrt — eine namenlose Stammkundenkarte ließe sich
+   * niemandem zuordnen.
+   */
+  requireName?: boolean
 }) {
   const [consent, setConsent] = React.useState(false)
+  const [name, setName] = React.useState('')
+  const holderName = requireName ? parseHolderName(name) : null
+  const blocked = requireName && !holderName
   const [deviceKey, setDeviceKey] = React.useState<string | null>(null)
 
   /*
@@ -76,7 +89,8 @@ export function WalletChoice({
   const href = (p: 'apple' | 'google') =>
     `/api/k/${code}?p=${p}` +
     (consent ? `&${CONSENT_PARAM}=1` : '') +
-    (deviceKey ? `&${DEVICE_PARAM}=${deviceKey}` : '')
+    (deviceKey ? `&${DEVICE_PARAM}=${deviceKey}` : '') +
+    (holderName ? `&${HOLDER_NAME_PARAM}=${encodeURIComponent(holderName)}` : '')
 
   const apple = (
     <AppleWalletButton key="apple" href={href('apple')} size="lg" className="justify-center" />
@@ -89,12 +103,44 @@ export function WalletChoice({
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {requireName ? (
+        <div className="w-full max-w-sm text-left">
+          <label htmlFor="holder-name" className="text-[13px] font-medium text-ink">
+            Dein Name
+          </label>
+          <input
+            id="holder-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={HOLDER_NAME_MAX}
+            autoComplete="name"
+            placeholder="Vor- und Nachname"
+            className="mt-1 h-11 w-full rounded-lg border border-line bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent"
+          />
+          <p className="mt-1 text-[12px] leading-snug text-ink-3">
+            Steht auf deiner Karte. Das Personal sieht ihn beim Prüfen, damit die Karte dir
+            zugeordnet werden kann.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex w-full max-w-sm flex-col gap-2.5">
         <Choice checked={deviceKey !== null} onChange={toggleRecognition} label={RECOGNITION_TEXT} />
         <Choice checked={consent} onChange={setConsent} label={CONSENT_TEXT} />
       </div>
 
-      <div className="flex w-full flex-col items-center gap-3">{buttons}</div>
+      {/* Ohne Namen gesperrt: sichtbar, aber nicht antippbar — der Hinweis sagt, warum. */}
+      <div
+        className={`flex w-full flex-col items-center gap-3 ${blocked ? 'pointer-events-none opacity-40' : ''}`}
+        aria-disabled={blocked || undefined}
+      >
+        {buttons}
+      </div>
+      {blocked ? (
+        <p className="-mt-1 text-center text-[12.5px] text-ink-3">
+          Bitte zuerst deinen Namen eintragen.
+        </p>
+      ) : null}
 
       {/* Pflichtangaben unter den Knöpfen: die Seite ist ein geschäftliches Angebot, und
           der Kunde soll beides finden, bevor er die Karte nimmt. Das Impressum ist das des

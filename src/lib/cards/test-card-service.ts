@@ -62,6 +62,10 @@ export async function ensureIssuedPass(resolved: ResolvedTestCard): Promise<void
       serial: resolved.serial,
       cardId: resolved.cardId,
       isTest: true,
+      // Die Art gehört zum Pass — sonst ließe sich eine Test-Stammkundenkarte an der Kasse
+      // nicht als solche prüfen.
+      kind: resolved.kind,
+      ...(resolved.kind === 'MEMBER' ? { holderName: TEST_HOLDER_NAME } : {}),
       stamps: resolved.currentStamps,
       stampGoal: resolved.design.stampGoal,
       designVersion: 1,
@@ -88,8 +92,12 @@ export async function toPassDesign(resolved: ResolvedTestCard): Promise<CardDesi
     organizationName: resolved.organizationName,
     currentStamps: resolved.currentStamps,
     assets,
+    ...(resolved.kind === 'MEMBER' ? { holderName: TEST_HOLDER_NAME, memberSince: new Date() } : {}),
   }
 }
+
+/** Platzhalter-Name einer Test-Stammkundenkarte — zeigt, wo der echte Name stehen wird. */
+const TEST_HOLDER_NAME = 'Max Mustermann'
 
 export type MobilePlatform = 'apple' | 'google' | 'unknown'
 

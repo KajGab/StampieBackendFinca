@@ -28,7 +28,20 @@ export interface PrivacyNoticeShop {
   email: string | null
 }
 
-export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; backHref: string }) {
+export function PrivacyNotice({
+  shop,
+  backHref,
+  memberCard = false,
+}: {
+  shop: PrivacyNoticeShop
+  backHref: string
+  /**
+   * Stammkundenkarte: hier wird — anders als bei Stempel- und Gutscheinkarten — der Name
+   * gespeichert, und die Karte wird an der Kasse geprüft statt gestempelt. Der Text muss
+   * das sagen; „Ihr Name wird nicht erhoben" wäre dort schlicht falsch.
+   */
+  memberCard?: boolean
+}) {
   const address = [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')]
     .filter((part) => part && part.trim().length > 0)
     .join(', ')
@@ -45,7 +58,8 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
   return (
     <PrivacyShell title="Datenschutz">
       <p className="text-[13px] text-ink-3">
-        Informationen zur digitalen Stempelkarte von {shop.organizationName}.
+        Informationen zur digitalen {memberCard ? 'Stammkundenkarte' : 'Stempelkarte'} von{' '}
+        {shop.organizationName}.
       </p>
 
       <Section title="Wer für Ihre Daten verantwortlich ist">
@@ -57,7 +71,7 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
         {shop.email ? <p>E-Mail: {shop.email}</p> : null}
         <p>
           {hasContact
-            ? 'An diese Adresse richten Sie Auskunfts- und Löschanfragen zu Ihrer Stempelkarte.'
+            ? `An diese Adresse richten Sie Auskunfts- und Löschanfragen zu Ihrer ${memberCard ? 'Stammkundenkarte' : 'Stempelkarte'}.`
             : 'Für Auskunft oder Löschung wenden Sie sich bitte direkt an den Betrieb.'}
         </p>
       </Section>
@@ -80,8 +94,21 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
       <Section title="Welche Daten gespeichert werden">
         <ul className="list-disc space-y-1 pl-5">
           <li>die Nummer Ihrer Karte</li>
-          <li>Ihr Stempelstand und das Ziel der Karte</li>
-          <li>der Zeitpunkt jeder Stempelbuchung und jeder Einlösung</li>
+          {memberCard ? (
+            <>
+              <li>Ihr Name, den Sie beim Hinzufügen der Karte angegeben haben</li>
+              <li>
+                der Zeitpunkt Ihrer Besuche, an denen die Karte an der Kasse geprüft wurde
+                (höchstens einer pro Tag)
+              </li>
+              <li>ob der Betrieb die Karte gesperrt hat</li>
+            </>
+          ) : (
+            <>
+              <li>Ihr Stempelstand und das Ziel der Karte</li>
+              <li>der Zeitpunkt jeder Stempelbuchung und jeder Einlösung</li>
+            </>
+          )}
           <li>der Zeitpunkt, an dem die Karte ausgegeben wurde</li>
           <li>
             technische Kennungen, damit sich die Karte in Apple Wallet oder Google Wallet
@@ -93,14 +120,25 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
             Gerät speichert — samt Wortlaut dieser Zustimmung
           </li>
         </ul>
-        <p className="mt-3">
-          <strong className="font-medium text-ink">
-            Ihr Name, Ihre E-Mail-Adresse und Ihre Telefonnummer werden nicht erhoben.
-          </strong>{' '}
-          Beim Scannen wird nichts abgefragt. Aus den Zeitpunkten der Besuche lässt sich
-          allerdings ablesen, wie oft Sie hier waren — deshalb behandeln wir sie als
-          personenbezogene Daten.
-        </p>
+        {memberCard ? (
+          <p className="mt-3">
+            <strong className="font-medium text-ink">
+              Ihre E-Mail-Adresse und Ihre Telefonnummer werden nicht erhoben.
+            </strong>{' '}
+            Ihr Name steht auf der Karte und wird dem Personal beim Prüfen angezeigt, damit es
+            die Karte Ihnen zuordnen kann. Aus den Zeitpunkten der Besuche lässt sich ablesen,
+            wie oft Sie hier waren.
+          </p>
+        ) : (
+          <p className="mt-3">
+            <strong className="font-medium text-ink">
+              Ihr Name, Ihre E-Mail-Adresse und Ihre Telefonnummer werden nicht erhoben.
+            </strong>{' '}
+            Beim Scannen wird nichts abgefragt. Aus den Zeitpunkten der Besuche lässt sich
+            allerdings ablesen, wie oft Sie hier waren — deshalb behandeln wir sie als
+            personenbezogene Daten.
+          </p>
+        )}
       </Section>
 
       <Section title="Wiedererkennung Ihres Geräts">
@@ -108,7 +146,10 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
           Nur wenn Sie beim Hinzufügen der Karte ausdrücklich zugestimmt haben, legt Ihr
           Browser eine zufällige Kennung ab. Scannen Sie später erneut, bekommen Sie damit{" "}
           <strong className="font-medium text-ink">Ihre bestehende Karte</strong> zurück statt
-          einer neuen, leeren — ohne die Kennung landen Ihre Stempel auf zwei Karten.
+          einer neuen, leeren —{' '}
+          {memberCard
+            ? 'ohne die Kennung bekommen Sie eine zweite Karte.'
+            : 'ohne die Kennung landen Ihre Stempel auf zwei Karten.'}
         </p>
         <p>
           Der Betrieb sieht dadurch außerdem, wie viele Personen seine Karten nutzen, statt
@@ -123,8 +164,9 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
 
       <Section title="Wozu">
         <p>
-          Ausschließlich, um die Stempelkarte zu führen: Stempel zu zählen, den Stand in Ihrem
-          Wallet aktuell zu halten und die Belohnung einzulösen.
+          {memberCard
+            ? 'Ausschließlich, um die Stammkundenkarte zu führen: an der Kasse zu prüfen, ob die Karte gültig ist und Ihnen gehört, Ihre Besuche zu zählen und die Karte in Ihrem Wallet aktuell zu halten.'
+            : 'Ausschließlich, um die Stempelkarte zu führen: Stempel zu zählen, den Stand in Ihrem Wallet aktuell zu halten und die Belohnung einzulösen.'}
         </p>
         <p>
           Nachrichten zu Angeboten erhalten Sie nur, wenn Sie beim Hinzufügen der Karte
@@ -138,8 +180,8 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
           Die Karte liegt in Ihrem Wallet — je nach Gerät bei{' '}
           <strong className="font-medium text-ink">Apple</strong> oder{' '}
           <strong className="font-medium text-ink">Google</strong>. Diese erhalten den Namen des
-          Betriebs, die Kartennummer und den Stempelstand, damit die Karte auf Ihrem Gerät
-          angezeigt und aktualisiert werden kann.
+          Betriebs, die Kartennummer und {memberCard ? 'Ihren Namen' : 'den Stempelstand'}, damit
+          die Karte auf Ihrem Gerät angezeigt und aktualisiert werden kann.
         </p>
         <p>
           Gespeichert und verarbeitet werden die Daten auf Servern in{' '}
@@ -148,11 +190,19 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
       </Section>
 
       <Section title="Wie lange">
-        <p>
-          Ihre Karte und ihr Stempelstand bleiben, solange Sie die Karte nutzen. Die Angaben
-          dazu, <em>wann</em> einzelne Stempel gebucht wurden, werden nach {stampEventDays} Tagen
-          automatisch gelöscht — der Stempelstand bleibt dabei erhalten.
-        </p>
+        {memberCard ? (
+          <p>
+            Ihre Karte und Ihr Name bleiben, solange Sie die Karte nutzen. Die Angaben dazu,{' '}
+            <em>wann</em> Sie die Karte vorgezeigt haben, werden nach {stampEventDays} Tagen
+            automatisch gelöscht.
+          </p>
+        ) : (
+          <p>
+            Ihre Karte und ihr Stempelstand bleiben, solange Sie die Karte nutzen. Die Angaben
+            dazu, <em>wann</em> einzelne Stempel gebucht wurden, werden nach {stampEventDays} Tagen
+            automatisch gelöscht — der Stempelstand bleibt dabei erhalten.
+          </p>
+        )}
         <p>
           Löschen Sie die Karte aus Ihrem Wallet oder bitten Sie den Betrieb um Löschung, werden
           alle Daten zu Ihrer Karte entfernt.
@@ -163,9 +213,11 @@ export function PrivacyNotice({ shop, backHref }: { shop: PrivacyNoticeShop; bac
         <p>
           Sie können Auskunft über die zu Ihrer Karte gespeicherten Daten verlangen, deren
           Berichtigung oder Löschung, sowie der Verarbeitung widersprechen. Nennen Sie dabei die
-          Nummer Ihrer Karte — ohne sie lässt sich die Karte nicht zuordnen, weil zu ihr kein Name
-          gespeichert ist. Außerdem können Sie sich bei einer Datenschutz-Aufsichtsbehörde
-          beschweren.
+          Nummer Ihrer Karte —{' '}
+          {memberCard
+            ? 'damit lässt sich die Karte eindeutig zuordnen.'
+            : 'ohne sie lässt sich die Karte nicht zuordnen, weil zu ihr kein Name gespeichert ist.'}{' '}
+          Außerdem können Sie sich bei einer Datenschutz-Aufsichtsbehörde beschweren.
         </p>
       </Section>
 

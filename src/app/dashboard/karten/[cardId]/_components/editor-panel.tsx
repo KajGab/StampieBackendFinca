@@ -9,6 +9,8 @@ import { TextsTab } from './tabs/texts-tab'
 import { AdvancedTab } from './tabs/advanced-tab'
 import { Button } from '@/components/ui/button'
 import { InfoHint, PanelSection } from '@/components/ui/misc'
+import { Input } from '@/components/ui/input'
+import { Field } from '@/components/ui/label'
 import { useCardEditor } from '@/stores/card-editor-provider'
 import { cn } from '@/lib/utils'
 import type { CustomerSummary } from '@/types/customer'
@@ -33,12 +35,14 @@ export function EditorPanel({
   onOpenTemplates: () => void
 }) {
   const isStamp = useCardEditor((s) => s.kind === 'STAMP')
+  const isMember = useCardEditor((s) => s.kind === 'MEMBER')
 
   return (
     <div className="divide-y divide-line">
       <Group title="Pflichtangaben" hint="Ohne diese Angaben bleibt Veröffentlichen gesperrt.">
         <TextsTab customer={customer} />
         {isStamp ? <ProgramEssentials /> : null}
+        {isMember ? <MemberBenefit /> : null}
         <BrandingEssentials />
       </Group>
 
@@ -116,5 +120,28 @@ function Advanced({ children }: { children: React.ReactNode }) {
       </button>
       {open ? <div className="pb-4">{children}</div> : null}
     </section>
+  )
+}
+
+/**
+ * Was Stammkunden bekommen — steht als „Vorteil" auf der Karte. Freiwillig: manche Betriebe
+ * wollen ihre Stammkunden nur erkennen, nicht rabattieren. Gespeichert im selben Feld wie
+ * der Belohnungstext der Stempelkarte, weil beide auf dem Pass dieselbe Zeile belegen.
+ */
+function MemberBenefit() {
+  const rewardText = useCardEditor((s) => s.design.rewardText)
+  const patch = useCardEditor((s) => s.patch)
+  return (
+    <PanelSection title="Stammkunden" description="Name und Mitgliedsdatum setzt jede Karte selbst.">
+      <Field label="Vorteil" htmlFor="member-benefit" hint="Optional · z. B. „10 % auf alle Getränke“">
+        <Input
+          id="member-benefit"
+          value={rewardText}
+          maxLength={80}
+          placeholder="10 % auf alle Getränke"
+          onChange={(e) => patch({ rewardText: e.target.value })}
+        />
+      </Field>
+    </PanelSection>
   )
 }

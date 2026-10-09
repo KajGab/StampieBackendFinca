@@ -25,6 +25,7 @@ export default async function PassPrivacyPage({
     where: { serial: serial.toUpperCase() },
     select: {
       serial: true,
+      kind: true,
       card: {
         select: {
           name: true,
@@ -67,6 +68,7 @@ export default async function PassPrivacyPage({
         email: org?.email ?? null,
       }}
       backHref={`/s/${pass.serial}`}
+      memberCard={pass.kind === 'MEMBER'}
     />
   )
 }

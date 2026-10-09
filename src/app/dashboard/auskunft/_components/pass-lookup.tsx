@@ -67,13 +67,17 @@ export function PassLookup() {
 
   const asText = (r: PassRecord) =>
     [
-      `Auskunft zur Stempelkarte ${r.serial}`,
+      `Auskunft zur ${r.kind === 'MEMBER' ? 'Stammkundenkarte' : 'Stempelkarte'} ${r.serial}`,
       `Betrieb: ${r.organizationName ?? '—'}`,
       `Karte: ${r.cardName}`,
       '',
       `Ausgegeben am: ${when(r.issuedAt)}`,
-      `Stempelstand: ${r.stamps} von ${r.stampGoal}`,
-      `Eingelöste Belohnungen: ${r.rewardCount}`,
+      ...(r.kind === 'MEMBER'
+        ? [
+            `Name: ${r.holderName ?? '—'}`,
+            `Status: ${r.blockedAt ? `gesperrt seit ${when(r.blockedAt)}` : 'gültig'}`,
+          ]
+        : [`Stempelstand: ${r.stamps} von ${r.stampGoal}`, `Eingelöste Belohnungen: ${r.rewardCount}`]),
       `Zuletzt geändert: ${when(r.updatedAt)}`,
       `Registrierte Apple-Geräte: ${r.appleDevices}`,
       `Erhaltene Erinnerungen: ${r.reminderDeliveries}`,
@@ -81,10 +85,14 @@ export function PassLookup() {
       `Gespeicherte Buchungen (${r.events.length}):`,
       ...r.events.map(
         (e) =>
-          `  ${when(e.at)} — ${e.kind}, ${e.delta >= 0 ? '+' : ''}${e.delta}, Stand ${e.balance}`,
+          e.kind === 'VISIT'
+            ? `  ${when(e.at)} — Besuch (Karte an der Kasse geprüft)`
+            : `  ${when(e.at)} — ${e.kind}, ${e.delta >= 0 ? '+' : ''}${e.delta}, Stand ${e.balance}`,
       ),
       '',
-      'Name, E-Mail-Adresse und Telefonnummer werden zu dieser Karte nicht gespeichert.',
+      r.kind === 'MEMBER'
+        ? 'Gespeichert ist der Name, den der Kunde beim Hinzufügen der Karte angegeben hat. E-Mail-Adresse und Telefonnummer werden nicht gespeichert.'
+        : 'Name, E-Mail-Adresse und Telefonnummer werden zu dieser Karte nicht gespeichert.',
     ].join('\n')
 
   return (
@@ -145,8 +153,17 @@ export function PassLookup() {
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
             <Row label="Ausgegeben am" value={when(record.issuedAt)} />
-            <Row label="Stempelstand" value={`${record.stamps} von ${record.stampGoal}`} />
-            <Row label="Belohnungen" value={String(record.rewardCount)} />
+            {record.kind === 'MEMBER' ? (
+              <>
+                <Row label="Name" value={record.holderName ?? '—'} />
+                <Row label="Status" value={record.blockedAt ? `Gesperrt seit ${when(record.blockedAt)}` : 'Gültig'} />
+              </>
+            ) : (
+              <>
+                <Row label="Stempelstand" value={`${record.stamps} von ${record.stampGoal}`} />
+                <Row label="Belohnungen" value={String(record.rewardCount)} />
+              </>
+            )}
             <Row label="Zuletzt geändert" value={when(record.updatedAt)} />
             <Row label="Apple-Geräte" value={String(record.appleDevices)} />
             <Row label="Erinnerungen" value={String(record.reminderDeliveries)} />
@@ -165,8 +182,14 @@ export function PassLookup() {
                   <li key={i} className="flex justify-between gap-3 tabular-nums">
                     <span>{when(e.at)}</span>
                     <span className="text-ink-3">
-                      {e.kind} · {e.delta >= 0 ? '+' : ''}
-                      {e.delta} · Stand {e.balance}
+                      {e.kind === 'VISIT' ? (
+                        'Besuch'
+                      ) : (
+                        <>
+                          {e.kind} · {e.delta >= 0 ? '+' : ''}
+                          {e.delta} · Stand {e.balance}
+                        </>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -175,8 +198,9 @@ export function PassLookup() {
           </div>
 
           <p className="text-[12.5px] leading-snug text-ink-3">
-            Zu dieser Karte sind kein Name, keine E-Mail-Adresse und keine Telefonnummer
-            gespeichert.
+            {record.kind === 'MEMBER'
+              ? 'Zu dieser Karte ist der Name gespeichert, den der Kunde angegeben hat — keine E-Mail-Adresse und keine Telefonnummer.'
+              : 'Zu dieser Karte sind kein Name, keine E-Mail-Adresse und keine Telefonnummer gespeichert.'}
           </p>
 
           <div className="border-t border-line pt-4">

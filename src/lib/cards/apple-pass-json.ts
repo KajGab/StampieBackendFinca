@@ -149,12 +149,18 @@ export interface BuildPassJsonContext {
 export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext): PassJson {
   const kind: CardKind = ctx.kind ?? 'STAMP'
   const isCoupon = kind === 'COUPON'
+  // Stammkundenkarte: eine Stempelkarte ohne Stempel — kein Zähler, keine Stempelreihe,
+  // dafür der Name des Kunden groß in der Mitte.
+  const isMember = kind === 'MEMBER'
   const stamps = Math.max(0, Math.min(design.stampGoal, ctx.currentStamps))
 
-  // A coupon has no counter, so its header stays empty rather than showing "0/10".
+  // A coupon has no counter, so its header stays empty rather than showing "0/10". The
+  // member card shows its status where the stamp card shows the counter.
   const headerFields: PassField[] = isCoupon
     ? []
-    : (
+    : isMember
+      ? [{ key: 'status', label: 'Status', value: 'Stammkunde', textAlignment: 'PKTextAlignmentRight' }]
+      : (
         [
           {
             key: 'stamps',
@@ -168,10 +174,14 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
   // The offer itself belongs in primaryFields — on a coupon that is the line Wallet sets
   // in the largest type. A storeCard hides primaryFields behind the strip, so it stays
   // empty there and the stamp grid keeps the space.
+  // Ohne Stempelreihe zeigt eine storeCard ihre primaryFields — dort steht bei der
+  // Stammkundenkarte der Name, damit das Personal ihn auf einen Blick vergleichen kann.
   const primaryFields: PassField[] =
     isCoupon && design.offerTitle?.trim()
       ? [{ key: 'offer', value: design.offerTitle.trim() }]
-      : []
+      : isMember && ctx.customerName?.trim()
+        ? [{ key: 'holder', label: 'Name', value: ctx.customerName.trim() }]
+        : []
 
   const secondaryFields: PassField[] = []
   if (isCoupon) {
@@ -180,7 +190,11 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
     }
   } else {
     if (design.rewardText.trim()) {
-      secondaryFields.push({ key: 'reward', label: 'Belohnung', value: design.rewardText.trim() })
+      secondaryFields.push({
+        key: 'reward',
+        label: isMember ? 'Vorteil' : 'Belohnung',
+        value: design.rewardText.trim(),
+      })
     }
     if (design.programName.trim()) {
       secondaryFields.push({ key: 'program', label: 'Programm', value: design.programName.trim() })
@@ -188,7 +202,8 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
   }
 
   const auxiliaryFields: PassField[] = []
-  if (ctx.customerName) {
+  // Auf der Stammkundenkarte steht der Name schon groß in der Mitte.
+  if (ctx.customerName && !isMember) {
     auxiliaryFields.push({ key: 'customer', label: 'Kunde', value: ctx.customerName })
   }
   if (ctx.memberSince && !isCoupon) {
@@ -268,7 +283,7 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
     backFields,
   }
 
-  const fallbackDescription = isCoupon ? 'Gutschein' : 'Stempelkarte'
+  const fallbackDescription = isCoupon ? 'Gutschein' : isMember ? 'Stammkundenkarte' : 'Stempelkarte'
 
   const pass: PassJson = {
     formatVersion: 1,
@@ -318,6 +333,12 @@ export function buildPassJson(design: CardDesignInput, ctx: BuildPassJsonContext
   return pass
 }
 
+/** Datum in deutscher Zeit — auf dem Server (UTC) läge ein Abend sonst schon am Folgetag. */
 function formatGermanDate(d: Date): string {
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+  return d.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Berlin',
+  })
 }

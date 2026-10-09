@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, BarChart3, Building2, MapPin, Plus, QrCode, Repeat, Send, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, Building2, MapPin, Plus, QrCode, Repeat, Send, Trash2, UserCheck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 const KIND_SECTIONS = [
   { kind: 'STAMP', title: 'Stempelkarten', empty: 'Keine Stempelkarte.' },
   { kind: 'COUPON', title: 'Gutscheinkarten', empty: 'Keine Gutscheinkarte.' },
+  { kind: 'MEMBER', title: 'Stammkundenkarten', empty: 'Keine Stammkundenkarte.' },
 ] as const
 
 /**
@@ -390,6 +391,8 @@ function CardTile({
   // Ein Gutschein hat keine Stempel: im Wallet steht groß das Angebot (wie in der
   // Editor-Vorschau `AppleCouponCard`), also auch hier — kein Zähler, keine Stempelreihe.
   const isCoupon = card.kind === 'COUPON'
+  // Stammkundenkarte: eine Stempelkarte ohne Stempel — kein Zähler, keine Stempelreihe.
+  const isMember = card.kind === 'MEMBER'
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
@@ -405,7 +408,11 @@ function CardTile({
                   preview?.issuerDisplayName?.trim() || card.orgName || card.name
                 : preview?.programName?.trim() || card.name}
             </span>
-            {design && !isCoupon ? (
+            {isMember ? (
+              <span className="shrink-0 text-[11px]" style={{ color: preview?.labelColor ?? '#cccccc' }}>
+                Stammkunde
+              </span>
+            ) : design && !isCoupon ? (
               <span
                 className="shrink-0 text-[11px] tabular-nums"
                 style={{ color: preview?.labelColor ?? '#cccccc' }}
@@ -414,7 +421,23 @@ function CardTile({
               </span>
             ) : null}
           </div>
-          {isCoupon ? (
+          {isMember ? (
+            // Wo die Stempelkarte ihre Stempel hat, steht im Wallet der Name des Kunden.
+            <div
+              className="flex flex-col justify-center gap-0.5 overflow-hidden px-3 pb-3"
+              style={{ aspectRatio: String(375 / 123), color: preview?.foregroundColor ?? '#ffffff' }}
+            >
+              <span className="text-[10px] uppercase tracking-[0.06em]" style={{ color: preview?.labelColor ?? '#cccccc' }}>
+                Name
+              </span>
+              <span className="text-[20px] font-semibold leading-tight opacity-60">Name des Kunden</span>
+              {preview?.rewardText?.trim() ? (
+                <span className="mt-1 line-clamp-1 text-[12.5px] leading-snug opacity-90">
+                  Vorteil: {preview.rewardText.trim()}
+                </span>
+              ) : null}
+            </div>
+          ) : isCoupon ? (
             // Gleiche Höhe wie die Stempelreihe, damit die Kacheln im Raster gleich hoch sind.
             <div
               className="flex flex-col justify-center gap-1 overflow-hidden px-3 pb-3"
@@ -485,7 +508,16 @@ function CardTile({
             <Button variant="ghost" size="sm" asChild>
               <Link href={`/dashboard/karten/${card.id}/stempeln`}>
                 <QrCode />
-                Stempeln
+                {isMember ? 'Prüfen' : 'Stempeln'}
+              </Link>
+            </Button>
+          ) : null}
+
+          {isMember ? (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/dashboard/karten/${card.id}/stammkunden`}>
+                <UserCheck />
+                Stammkunden
               </Link>
             </Button>
           ) : null}

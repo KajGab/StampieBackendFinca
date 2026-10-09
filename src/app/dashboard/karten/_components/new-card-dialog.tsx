@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Stamp, Ticket, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, Stamp, Ticket, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -41,6 +41,12 @@ const CARD_KIND_OPTIONS: ReadonlyArray<{
     label: 'Gutscheinkarte',
     description: 'Einmaliger Rabatt, wird an der Kasse eingelöst.',
     icon: Ticket,
+  },
+  {
+    value: 'MEMBER',
+    label: 'Stammkundenkarte',
+    description: 'Mit Namen des Kunden, wird an der Kasse geprüft statt gestempelt.',
+    icon: BadgeCheck,
   },
 ]
 
@@ -128,7 +134,7 @@ export function NewCardDialog({
           */}
           <fieldset>
             <legend className="mb-2 text-[13px] font-medium">Was für eine Karte?</legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {CARD_KIND_OPTIONS.map((option) => {
                 const selected = kind === option.value
                 return (
@@ -165,7 +171,13 @@ export function NewCardDialog({
               id="card-name"
               value={name}
               maxLength={60}
-              placeholder={kind === 'COUPON' ? 'Sommeraktion Café Nord' : 'Kaffeekarte Café Nord'}
+              placeholder={
+                kind === 'COUPON'
+                  ? 'Sommeraktion Café Nord'
+                  : kind === 'MEMBER'
+                    ? 'Stammkunden Café Nord'
+                    : 'Kaffeekarte Café Nord'
+              }
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) void submit()

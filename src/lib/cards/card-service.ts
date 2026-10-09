@@ -52,6 +52,8 @@ export interface CardSummary {
     offerDetails: string | null
     /** Eigener Ausstellername; sonst steht im Wallet der Name des Betriebs. */
     issuerDisplayName: string | null
+    /** Belohnung der Stempelkarte bzw. Vorteil der Stammkundenkarte. */
+    rewardText: string
   } | null
 }
 
@@ -110,6 +112,7 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
           offerTitle: true,
           offerDetails: true,
           issuerDisplayName: true,
+          rewardText: true,
         },
       },
     },
@@ -169,6 +172,7 @@ export async function listCards(options: ListCardsOptions): Promise<CardSummary[
             offerTitle: source.offerTitle,
             offerDetails: source.offerDetails,
             issuerDisplayName: source.issuerDisplayName,
+            rewardText: source.rewardText,
           }
         : null,
     }

@@ -40,6 +40,20 @@ export interface CouponStat {
   open: number
 }
 
+/** Eine Stammkundenkarte: wie viele Stammkunden, wie oft sie da waren. */
+export interface MemberStat {
+  id: string
+  name: string
+  /** Stammkunden mit dieser Karte, gesperrte eingeschlossen. */
+  members: number
+  newThisMonth: number
+  blocked: number
+  /** Gezählte Besuche (höchstens einer pro Karte und Tag) in diesem Monat. */
+  visitsThisMonth: number
+  /** Stammkunden, die in diesem Monat mindestens einmal da waren. */
+  activeThisMonth: number
+}
+
 export interface WeekStat {
   /** Wochenanfang (Montag) kurz, z. B. „05.10.“ — für Diagramm und App. */
   label: string
@@ -60,6 +74,8 @@ export interface OrgStats {
   cards: CardStat[]
   /** Nur die Gutscheinkarten. */
   coupons: CouponStat[]
+  /** Nur die Stammkundenkarten. */
+  members: MemberStat[]
 }
 
 export interface StatsCardInput {
@@ -78,6 +94,15 @@ export interface StatsPassInput {
   stamps: number
   rewardCount: number
   redeemedAt: Date | null
+  /** Stammkundenkarte: gesperrt seit. */
+  blockedAt?: Date | null
+  createdAt: Date
+}
+
+/** Ein gezählter Besuch auf einer Stammkundenkarte. */
+export interface StatsVisitInput {
+  passId: string
+  cardId: string
   createdAt: Date
 }
 
@@ -93,6 +118,8 @@ export function computeOrgStats(input: {
   lastVisitByPass: Map<string, Date>
   inactiveAfterMonths: number
   now: Date
+  /** Besuche auf Stammkundenkarten; fehlt die Angabe, zählen keine. */
+  memberVisits?: StatsVisitInput[]
 }): OrgStats {
   const { cards, lastVisitByPass, inactiveAfterMonths, now } = input
   // Kunden zählen nur über Stempelkarten-Pässe mit Gerät.
@@ -196,6 +223,24 @@ export function computeOrgStats(input: {
       return { id: card.id, name: card.name, issued: issued.length, redeemed, open: issued.length - redeemed }
     })
 
+  // Stammkundenkarten: Mitglieder, neue, gesperrte, und wer diesen Monat da war.
+  const visitsThisMonth = (input.memberVisits ?? []).filter((v) => v.createdAt >= startOfMonth)
+  const members: MemberStat[] = cards
+    .filter((card) => card.kind === 'MEMBER')
+    .map((card) => {
+      const holders = input.passes.filter((p) => p.cardId === card.id && p.kind === 'MEMBER')
+      const visits = visitsThisMonth.filter((v) => v.cardId === card.id)
+      return {
+        id: card.id,
+        name: card.name,
+        members: holders.length,
+        newThisMonth: holders.filter((p) => p.createdAt >= startOfMonth).length,
+        blocked: holders.filter((p) => p.blockedAt).length,
+        visitsThisMonth: visits.length,
+        activeThisMonth: new Set(visits.map((v) => v.passId)).size,
+      }
+    })
+
   return {
     customers: devices.size,
     newThisMonth,
@@ -205,6 +250,7 @@ export function computeOrgStats(input: {
     weekly,
     cards: cardStats,
     coupons,
+    members,
   }
 }
 
@@ -237,8 +283,9 @@ export async function loadOrgStats(orgId: string, now: Date = new Date()): Promi
         where: {
           cardId: { in: cards.map((c) => c.id) },
           isTest: false,
-          // Stempelkarten nur mit Gerät (echtes Handy hat die Karte); Gutscheine alle.
-          OR: [{ kind: 'STAMP', deviceKey: { not: null } }, { kind: 'COUPON' }],
+          // Stempelkarten nur mit Gerät (echtes Handy hat die Karte); Gutscheine und
+          // Stammkundenkarten alle.
+          OR: [{ kind: 'STAMP', deviceKey: { not: null } }, { kind: 'COUPON' }, { kind: 'MEMBER' }],
         },
         select: {
           id: true,
@@ -248,6 +295,7 @@ export async function loadOrgStats(orgId: string, now: Date = new Date()): Promi
           stamps: true,
           rewardCount: true,
           redeemedAt: true,
+          blockedAt: true,
           createdAt: true,
         },
       })
@@ -265,5 +313,18 @@ export async function loadOrgStats(orgId: string, now: Date = new Date()): Promi
   const lastVisitByPass = new Map<string, Date>()
   for (const e of lastEvents) if (e._max.createdAt) lastVisitByPass.set(e.passId, e._max.createdAt)
 
-  return computeOrgStats({ cards, passes, lastVisitByPass, inactiveAfterMonths, now })
+  // Besuche auf Stammkundenkarten in diesem Monat — mehr braucht die Rechnung nicht.
+  const memberPassIds = passes.filter((p) => p.kind === 'MEMBER').map((p) => p.id)
+  const memberVisits = memberPassIds.length
+    ? await prisma.stampEvent.findMany({
+        where: {
+          passId: { in: memberPassIds },
+          kind: 'VISIT',
+          createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) },
+        },
+        select: { passId: true, cardId: true, createdAt: true },
+      })
+    : []
+
+  return computeOrgStats({ cards, passes, lastVisitByPass, inactiveAfterMonths, now, memberVisits })
 }

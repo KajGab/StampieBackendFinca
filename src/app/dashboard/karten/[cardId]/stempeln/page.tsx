@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Palette } from 'lucide-react'
 import { TillView } from './_components/till-view'
+import { MemberCheckView } from './_components/member-check-view'
 import {
   assertCardAccess,
   CardAccessError,
@@ -63,7 +64,11 @@ export default async function StempelnPage({
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="truncate text-[15px] font-semibold text-ink">
-              {card.kind === 'COUPON' ? 'Gutschein einlösen' : 'Stempeln'}
+              {card.kind === 'COUPON'
+                ? 'Gutschein einlösen'
+                : card.kind === 'MEMBER'
+                  ? 'Stammkunden prüfen'
+                  : 'Stempeln'}
             </h1>
             <p className="truncate text-[12px] text-ink-3">{card.org?.name ?? card.name}</p>
           </div>
@@ -77,7 +82,11 @@ export default async function StempelnPage({
         </div>
       </header>
 
-      <TillView cardId={access.cardId} cardKind={card.kind} initialSerial={serial ?? null} />
+      {card.kind === 'MEMBER' ? (
+        <MemberCheckView cardId={access.cardId} initialSerial={serial ?? null} />
+      ) : (
+        <TillView cardId={access.cardId} cardKind={card.kind} initialSerial={serial ?? null} />
+      )}
     </div>
   )
 }

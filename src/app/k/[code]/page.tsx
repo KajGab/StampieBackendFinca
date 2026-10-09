@@ -69,7 +69,11 @@ export default async function HandoutLandingPage({
           ) : null}
 
           <p className="mt-4 text-[13px] leading-snug opacity-80">
-            {resolved.kind === 'STAMP' ? `${design.stampGoal} ${stampLabel}` : 'Gutschein'}
+            {resolved.kind === 'STAMP'
+              ? `${design.stampGoal} ${stampLabel}`
+              : resolved.kind === 'MEMBER'
+                ? 'Stammkundenkarte'
+                : 'Gutschein'}
             {reward ? ` — ${reward}` : ''}
           </p>
         </div>
@@ -82,6 +86,7 @@ export default async function HandoutLandingPage({
           code={code}
           platform={platform}
           imprintUrl={resolved.customer.imprintUrl}
+          requireName={resolved.kind === 'MEMBER'}
         />
 
         <ShopDetails customer={resolved.customer} />

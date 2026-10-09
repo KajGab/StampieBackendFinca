@@ -146,6 +146,9 @@ export async function stampAction(input: unknown): Promise<ActionResult<StampRes
     if (card?.kind === 'COUPON') {
       return fail('Ein Gutschein wird eingelöst, nicht gestempelt.', 'validation')
     }
+    if (card?.kind === 'MEMBER') {
+      return fail('Stammkundenkarten werden geprüft, nicht gestempelt.', 'validation')
+    }
 
     const pass = await prisma.issuedPass.findFirst({ where: { serial, cardId } })
     if (!pass) return fail(`Karte ${serial} gehört nicht zu dieser Stempelkarte.`, 'not_found')

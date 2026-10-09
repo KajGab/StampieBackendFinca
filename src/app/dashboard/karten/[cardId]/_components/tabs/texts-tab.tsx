@@ -18,6 +18,8 @@ export function TextsTab({ customer }: { customer: CustomerSummary }) {
   const patch = useCardEditor((s) => s.patch)
   const addBackField = useCardEditor((s) => s.addBackField)
   const isStamp = useCardEditor((s) => s.kind === 'STAMP')
+  // Die Stammkundenkarte braucht wie die Stempelkarte einen Programmnamen — er ist ihr Titel.
+  const hasProgramName = useCardEditor((s) => s.kind === 'STAMP' || s.kind === 'MEMBER')
 
   const existingTypes = new Set(design.backFields.map((f) => f.label.toLowerCase()))
   const legalKinds = new Set(design.backFields.filter((f) => f.type === 'legal').map((f) => f.kind))
@@ -135,7 +137,7 @@ export function TextsTab({ customer }: { customer: CustomerSummary }) {
             A coupon is named by its offer title, which `buildPassJson` and the Wallet list
             both use — asking for a second name here would only create two competing ones.
           */}
-          {isStamp ? (
+          {hasProgramName ? (
             <Field
               label="Programmname"
               htmlFor="program-name"

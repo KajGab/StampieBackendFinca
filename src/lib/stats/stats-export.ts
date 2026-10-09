@@ -80,6 +80,20 @@ export function statsSheets(stats: OrgStats, betriebName: string, generatedAt: D
         ...stats.coupons.map((c): Cell[] => [c.name, c.issued, c.redeemed, c.open]),
       ],
     },
+    {
+      name: 'Stammkundenkarten',
+      rows: [
+        ['Karte', 'Stammkunden', 'Neu in diesem Monat', 'Besuche in diesem Monat', 'Diesen Monat da', 'Gesperrt'],
+        ...stats.members.map((m): Cell[] => [
+          m.name,
+          m.members,
+          m.newThisMonth,
+          m.visitsThisMonth,
+          m.activeThisMonth,
+          m.blocked,
+        ]),
+      ],
+    },
   ]
 }
 

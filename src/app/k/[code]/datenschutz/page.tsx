@@ -35,6 +35,7 @@ export default async function HandoutPrivacyPage({
     <PrivacyNotice
       shop={{ organizationName: resolved.organizationName, ...resolved.customer }}
       backHref={`/k/${code}`}
+      memberCard={resolved.kind === 'MEMBER'}
     />
   )
 }

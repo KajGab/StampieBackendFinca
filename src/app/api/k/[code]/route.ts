@@ -4,8 +4,10 @@ import { rateLimit } from '@/lib/rate-limit'
 import {
   CONSENT_PARAM,
   DEVICE_PARAM,
+  HOLDER_NAME_PARAM,
   hasConsentParam,
   isValidDeviceKey,
+  parseHolderName,
 } from '@/lib/privacy/consent'
 import {
   issuePassForDevice,
@@ -57,6 +59,18 @@ export async function GET(
    * gilt: wer ihn kennt, bekommt diese Karte, und ein geratener darf niemandem die Karte
    * eines anderen öffnen.
    */
+  // Stammkundenkarte: ohne Namen keine Karte — er ist das, woran die Kasse sie zuordnet.
+  // Die Ausgabeseite lässt ohne Namen gar nicht erst hinzufügen; das hier fängt nur einen
+  // direkt aufgerufenen Link ab.
+  const holderName =
+    resolved.kind === 'MEMBER' ? parseHolderName(request.nextUrl.searchParams.get(HOLDER_NAME_PARAM)) : null
+  if (resolved.kind === 'MEMBER' && !holderName) {
+    return NextResponse.json(
+      { error: 'Bitte auf der Seite davor deinen Namen eintragen (2 bis 60 Zeichen).' },
+      { status: 400 },
+    )
+  }
+
   const supplied = request.nextUrl.searchParams.get(DEVICE_PARAM)
   const recognized = isValidDeviceKey(supplied)
   const deviceKey = recognized ? supplied : newDeviceKey()
@@ -72,13 +86,9 @@ export async function GET(
     )
   }
 
-  const { serial, currentStamps } = await issuePassForDevice(
-    resolved,
-    deviceKey,
-    marketingConsent,
-    recognized,
-  )
-  const design = await toHandoutDesign(resolved, currentStamps, serial, marketingConsent)
+  const issued = await issuePassForDevice(resolved, deviceKey, marketingConsent, recognized, holderName)
+  const { serial, currentStamps } = issued
+  const design = await toHandoutDesign(resolved, currentStamps, serial, marketingConsent, issued)
   const builder = getPassBuilder()
 
   const response =

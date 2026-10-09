@@ -40,6 +40,7 @@ export async function GET(
   const png = await renderStripImage(design, Math.min(s, design.stampGoal), 1, {
     target: 'google',
     customIconPng: assets.customIconPng,
+    customIconPngs: assets.customIconPngs,
     backgroundPng: assets.backgroundPng,
   })
 

@@ -1,5 +1,5 @@
 import { computeStampLayout, type StripCanvas, type StampLayout } from './stamp-layout'
-import { resolveStampIcon } from './stamp-icons'
+import { resolveStampIcon, sequenceIndexFor } from './stamp-icons'
 import { HEX_COLOR_RE, type EmptyStampStyle } from './schema'
 
 /**
@@ -19,6 +19,12 @@ export interface StripSvgInput {
   readonly emptyStampStyle: EmptyStampStyle
   /** Base64 PNG (no data: prefix) for custom or emoji stamp icons. */
   readonly customIconBase64?: string | null
+  /**
+   * Mehrere eigene Stempelbilder (Base64-PNG), der Reihe nach: Stempel 1 trägt das erste,
+   * Stempel 2 das zweite, nach dem letzten geht es von vorne los. Leer oder fehlend: alle
+   * Stempel tragen `customIconBase64` bzw. das Symbol.
+   */
+  readonly customIconSequenceBase64?: readonly string[] | null
   /** Base64 PNG (no data: prefix) used as a full-bleed background. */
   readonly backgroundImageBase64?: string | null
 }
@@ -91,12 +97,15 @@ export function buildStripSvg(input: StripSvgInput, canvas: StripCanvas, scale =
     parts.push(`<rect width="${canvas.width}" height="${canvas.height}" fill="${background}" opacity="0.35"/>`)
   }
 
+  const sequence = input.customIconSequenceBase64 ?? []
   for (const cell of layout.cells) {
+    // Jeder Platz trägt sein Bild aus der Reihe — auch ein offener, damit „transparent"
+    // schon zeigt, welcher Stempel dort einmal hinkommt.
+    const iconBase64 =
+      sequence.length > 0 ? sequence[sequenceIndexFor(cell.index, sequence.length)] : input.customIconBase64
     const isStamped = cell.index < stamped
     if (isStamped) {
-      parts.push(
-        renderFilledIcon(cell.x, cell.y, cell.size, input.stampIcon, foreground, 1, input.customIconBase64),
-      )
+      parts.push(renderFilledIcon(cell.x, cell.y, cell.size, input.stampIcon, foreground, 1, iconBase64))
       continue
     }
     switch (input.emptyStampStyle) {
@@ -115,7 +124,7 @@ export function buildStripSvg(input: StripSvgInput, canvas: StripCanvas, scale =
             input.stampIcon,
             foreground,
             OPEN_STAMP_OPACITY,
-            input.customIconBase64,
+            iconBase64,
           ),
         )
         break

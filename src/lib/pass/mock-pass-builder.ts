@@ -74,6 +74,7 @@ export class MockPassBuilder implements PassBuilder {
       // Regenerated for this exact stamp count — the whole reason the renderer is server-side.
       const strip = await renderStripImageSet(design, design.currentStamps, {
         customIconPng: design.assets.stampIcon,
+        customIconPngs: design.assets.stampIcons,
         backgroundPng: design.assets.hero,
       })
       files.push(

@@ -237,7 +237,7 @@ describe('the .pkpass bundle', () => {
     kind: 'STAMP',
     organizationName: 'Café Nord',
     currentStamps: 3,
-    assets: { icon: null, logo: null, stampIcon: null, hero: null, logoUrl: null, heroUrl: null },
+    assets: { icon: null, logo: null, stampIcon: null, stampIcons: [], hero: null, logoUrl: null, heroUrl: null },
   }
 
   function entryNames(zip: Buffer): string[] {

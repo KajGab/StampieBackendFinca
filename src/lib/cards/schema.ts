@@ -161,6 +161,16 @@ export const cardDesignDraftSchema = z
       .max(STAMP_GOAL_MAX, `Höchstens ${STAMP_GOAL_MAX} Stempel.`),
     stampIcon: stampIconSchema,
     stampIconAssetId: z.string().cuid().nullable().default(null),
+    /**
+     * Eigene Stempelbilder der Reihe nach — Stempel 1 bekommt das erste, Stempel 2 das
+     * zweite, nach dem letzten geht es von vorne los. Nur bei `stampIcon: 'custom'`; der
+     * erste Eintrag ist dann auch `stampIconAssetId`, damit alles, was nur ein Bild kennt,
+     * weiter funktioniert. Leer: ein Bild für alle Stempel.
+     */
+    stampIconAssetIds: z
+      .array(z.string().cuid())
+      .max(STAMP_GOAL_MAX, `Höchstens ${STAMP_GOAL_MAX} Stempelbilder.`)
+      .default([]),
     emptyStampStyle: emptyStampStyleSchema,
     rewardText: z.string().max(80, 'Belohnungstext ist zu lang (max. 80 Zeichen).'),
 

@@ -1,5 +1,6 @@
 import type { CardDesignInput } from '@/lib/cards/schema'
 import { STRIP_RENDERER_VERSION } from '@/lib/cards/stamp-layout'
+import { stampImageSequence } from '@/lib/cards/stamp-icons'
 
 /**
  * URLs for the images Google fetches.
@@ -62,6 +63,7 @@ function heroVersion(design: CardDesignInput): string {
       design.stampIcon,
       design.emptyStampStyle,
       design.stampIconAssetId ?? '',
+      stampImageSequence(design).join(','),
       design.heroAssetId ?? '',
     ].join('|'),
   )

@@ -368,6 +368,11 @@ model CardDesign {
   stampGoal        Int     @default(10)
   stampIcon        String  @default("coffee")
   stampIconAssetId String?
+  /// Mehrere eigene Stempelbilder, der Reihe nach: Stempel 1 bekommt das erste, Stempel 2
+  /// das zweite … und nach dem letzten geht es von vorne los. Gilt nur bei
+  /// `stampIcon = "custom"`; der erste Eintrag ist dann zugleich `stampIconAssetId`.
+  /// Leer heißt: ein Bild für alle Stempel, wie bisher.
+  stampIconAssetIds String[] @default([])
   emptyStampStyle  String  @default("outline")
   rewardText       String  @default("")
 

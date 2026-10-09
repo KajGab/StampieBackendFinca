@@ -137,3 +137,53 @@ export function isEmojiIcon(key: string): boolean {
 export function isLibraryIcon(key: string): boolean {
   return BY_KEY.has(key)
 }
+
+/**
+ * Die eigenen Stempelbilder in Stempel-Reihenfolge — leer, wenn alle Stempel dasselbe Bild
+ * (oder Symbol) tragen. Nur ein hochgeladenes Bild kann eine Reihe sein: wer danach ein
+ * Symbol oder Emoji wählt, bekommt dieses auf allen Stempeln, auch wenn die alte Liste
+ * noch im Entwurf steht.
+ */
+export function stampImageSequence(design: {
+  stampIcon: string
+  stampIconAssetIds?: readonly string[] | null
+}): readonly string[] {
+  if (design.stampIcon !== CUSTOM_ICON_KEY) return []
+  return design.stampIconAssetIds ?? []
+}
+
+/** Welches Bild der Stempel an Position `index` (ab 0) trägt: der Reihe nach, dann von vorne. */
+export function sequenceIndexFor(index: number, length: number): number {
+  return length > 0 ? index % length : 0
+}
+
+/**
+ * Die hochgeladenen Stempelbilder, wie der Editor sie zeigt — auch bei einer älteren Karte,
+ * die nur `stampIconAssetId` kennt: dann ist ihr eines Bild die ganze Reihe.
+ */
+export function customStampImageIds(design: {
+  stampIcon: string
+  stampIconAssetId: string | null
+  stampIconAssetIds?: readonly string[] | null
+}): string[] {
+  if (design.stampIcon !== CUSTOM_ICON_KEY) return []
+  const list = design.stampIconAssetIds ?? []
+  if (list.length > 0) return [...list]
+  return design.stampIconAssetId ? [design.stampIconAssetId] : []
+}
+
+/** Sagt in einem Satz, welcher Stempel welches Bild bekommt. */
+export function stampSequenceHint(images: number, stampGoal: number): string {
+  if (images === 0) {
+    return 'Lädst du mehrere Bilder hoch, bekommt jeder Stempel der Reihe nach ein anderes: Stempel 1 das erste Bild, Stempel 2 das zweite …'
+  }
+  if (images === 1) {
+    return 'Alle Stempel tragen dieses Bild. Lädst du weitere hoch, bekommt jeder Stempel der Reihe nach ein anderes.'
+  }
+  if (images === stampGoal) return `Jeder der ${stampGoal} Stempel hat sein eigenes Bild, Stempel 1 das erste.`
+  if (images < stampGoal) {
+    return `Stempel 1 bekommt Bild 1, Stempel 2 Bild 2 … Nach Bild ${images} geht es wieder mit Bild 1 los, bis alle ${stampGoal} Stempel voll sind.`
+  }
+  const unused = images === stampGoal + 1 ? `Bild ${images} kommt` : `Bild ${stampGoal + 1} bis ${images} kommen`
+  return `Die Karte hat nur ${stampGoal} Stempel — ${unused} nicht vor. Erhöhe die Stempelzahl oder entferne Bilder.`
+}

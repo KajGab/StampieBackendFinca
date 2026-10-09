@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { loadStripAssets } from './asset-service'
 import { renderStripImage, type StripScale, type StripTarget } from './render-strip'
 import type { CardDesignInput } from './schema'
+import { stampImageSequence } from './stamp-icons'
 
 /**
  * Caching wrapper around the strip renderer for the live preview.
@@ -23,6 +24,7 @@ export type StripRenderFields = Pick<
   | 'stampIcon'
   | 'emptyStampStyle'
   | 'stampIconAssetId'
+  | 'stampIconAssetIds'
   | 'heroAssetId'
 >
 
@@ -34,6 +36,7 @@ export function stripRenderFields(design: CardDesignInput): StripRenderFields {
     stampIcon: design.stampIcon,
     emptyStampStyle: design.emptyStampStyle,
     stampIconAssetId: design.stampIconAssetId,
+    stampIconAssetIds: design.stampIconAssetIds,
     heroAssetId: design.heroAssetId,
   }
 }
@@ -51,6 +54,7 @@ export function designRenderHash(design: CardDesignInput): string {
     f.stampIcon,
     f.emptyStampStyle,
     f.stampIconAssetId ?? '',
+    stampImageSequence(f).join(','),
     f.heroAssetId ?? '',
   ].join('|')
   return createHash('sha256').update(canonical).digest('base64url').slice(0, 16)
@@ -101,6 +105,7 @@ export async function renderStripCached(req: RenderStripRequest): Promise<Buffer
   const buffer = await renderStripImage(req.design, req.currentStamps, req.scale, {
     target: req.target,
     customIconPng: assets.customIconPng,
+    customIconPngs: assets.customIconPngs,
     backgroundPng: assets.backgroundPng,
   })
 

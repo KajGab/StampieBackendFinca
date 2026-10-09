@@ -383,6 +383,7 @@ function CardTile({
         stampIcon: preview.stampIcon,
         emptyStampStyle: preview.emptyStampStyle as typeof DEFAULT_CARD_DESIGN.emptyStampStyle,
         stampIconAssetId: preview.stampIconAssetId,
+        stampIconAssetIds: preview.stampIconAssetIds,
         heroAssetId: preview.heroAssetId,
       }
     : null

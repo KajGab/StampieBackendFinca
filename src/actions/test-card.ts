@@ -60,6 +60,7 @@ export async function createTestCardAction(input: unknown): Promise<ActionResult
     const assets = await loadStripAssets(design, cardId)
     await renderStripImageSet(design, stamps, {
       customIconPng: assets.customIconPng,
+      customIconPngs: assets.customIconPngs,
       backgroundPng: assets.backgroundPng,
     })
 

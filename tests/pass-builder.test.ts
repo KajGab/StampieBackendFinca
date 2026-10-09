@@ -25,6 +25,7 @@ const design: CardDesign = {
     icon: { '1x': icon },
     logo: null,
     stampIcon: null,
+    stampIcons: [],
     hero: null,
     logoUrl: null,
     heroUrl: null,

@@ -34,6 +34,8 @@ const querySchema = z.object({
   icon: z.string().min(1).max(64),
   empty: emptyStampStyleSchema,
   iconAsset: z.string().cuid().nullable().catch(null),
+  /** Mehrere Stempelbilder der Reihe nach, kommagetrennt. */
+  iconAssets: z.array(z.string().cuid()).max(STAMP_GOAL_MAX).catch([]),
   heroAsset: z.string().cuid().nullable().catch(null),
   t: z.enum(['apple', 'google']).default('apple'),
   x: z.coerce.number().int().min(1).max(3).default(2),
@@ -47,6 +49,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     fg: params.fg ? `#${params.fg.replace(/^#/, '')}` : undefined,
     bg: params.bg ? `#${params.bg.replace(/^#/, '')}` : undefined,
     iconAsset: params.iconAsset || null,
+    iconAssets: params.iconAssets ? params.iconAssets.split(',') : [],
     heroAsset: params.heroAsset || null,
   }
 
@@ -78,6 +81,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       stampIcon: q.icon,
       emptyStampStyle: q.empty,
       stampIconAssetId: q.iconAsset,
+      stampIconAssetIds: q.iconAssets,
       heroAssetId: q.heroAsset,
     },
   })

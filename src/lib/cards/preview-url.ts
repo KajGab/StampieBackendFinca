@@ -1,6 +1,7 @@
 import type { CardDesignInput } from './schema'
 import type { StripTarget } from './render-strip'
 import { STRIP_RENDERER_VERSION } from './stamp-layout'
+import { stampImageSequence } from './stamp-icons'
 
 /**
  * Builds the /api/preview/strip URL for a design state.
@@ -46,6 +47,8 @@ export function stripPreviewUrl(design: CardDesignInput, options: StripUrlOption
   })
 
   if (design.stampIconAssetId) params.set('iconAsset', design.stampIconAssetId)
+  const sequence = stampImageSequence(design)
+  if (sequence.length > 0) params.set('iconAssets', sequence.join(','))
   if (design.heroAssetId) params.set('heroAsset', design.heroAssetId)
 
   // The renderer version goes into the hash, not the query: the server ignores `v`, so an

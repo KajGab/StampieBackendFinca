@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ArrowLeft, ArrowRight, Plus, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Trash2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/misc'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CUSTOM_ICON_KEY, customStampImageIds, stampSequenceHint, STAMP_ICONS } from '@/lib/cards/stamp-icons'
 import { STAMP_GOAL_MAX } from '@/lib/cards/schema'
+import { DEFAULT_CARD_DESIGN } from '@/lib/cards/defaults'
 import { uploadAssetAction } from '@/actions/assets'
 import { MAX_UPLOAD_BYTES } from '@/lib/images/upload-constraints'
 import { useCardEditor, useCardEditorStore } from '@/stores/card-editor-provider'
@@ -50,6 +51,8 @@ export function StampIconPicker() {
 
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  /** Hinweis, nachdem das letzte eigene Bild entfernt wurde. */
+  const [notice, setNotice] = React.useState<string | null>(null)
   const [customEmoji, setCustomEmoji] = React.useState('')
   const fileRef = React.useRef<HTMLInputElement>(null)
 
@@ -69,9 +72,25 @@ export function StampIconPicker() {
     return result.data.id
   }
 
-  /** Die Reihe der eigenen Bilder setzen. Das erste ist zugleich das „eine" Stempelbild. */
-  const setCustomImages = (ids: string[]) =>
-    patch({ stampIcon: CUSTOM_ICON_KEY, stampIconAssetId: ids[0] ?? null, stampIconAssetIds: ids })
+  /**
+   * Die Reihe der eigenen Bilder setzen. Das erste ist zugleich das „eine" Stempelbild.
+   *
+   * Ohne Bild geht es zurück zum Standard-Symbol: ein „eigenes Bild" ohne Bild lässt sich
+   * nicht speichern, und die Stempel blieben leer.
+   */
+  const setCustomImages = (ids: string[]) => {
+    setNotice(null)
+    if (ids.length === 0) {
+      const fallback = DEFAULT_CARD_DESIGN.stampIcon
+      patch({ stampIcon: fallback, stampIconAssetId: null, stampIconAssetIds: [] })
+      const label = STAMP_ICONS.find((icon) => icon.key === fallback)?.label ?? fallback
+      setNotice(
+        `Eigene Bilder entfernt. Die Stempel zeigen jetzt das Symbol „${label}" — unter „Bibliothek" oder „Emoji" kannst du ein anderes wählen.`,
+      )
+      return
+    }
+    patch({ stampIcon: CUSTOM_ICON_KEY, stampIconAssetId: ids[0]!, stampIconAssetIds: ids })
+  }
 
   const addImages = async (files: File[]) => {
     setError(null)
@@ -114,8 +133,6 @@ export function StampIconPicker() {
     setCustomImages(next)
   }
 
-  // Das letzte Bild bleibt: ohne Bild hätte „Eigenes Bild" nichts zu zeigen. Wer keins
-  // mehr will, wählt ein Symbol oder Emoji.
   const removeImage = (index: number) => setCustomImages(customImages.filter((_, i) => i !== index))
 
   const pickEmoji = async (emoji: string) => {
@@ -126,6 +143,7 @@ export function StampIconPicker() {
     }
     setBusy(true)
     setError(null)
+    setNotice(null)
     try {
       const id = await upload(new File([blob], 'emoji.png', { type: 'image/png' }))
       if (id) patch({ stampIcon: emojiKey(emoji), stampIconAssetId: id, stampIconAssetIds: [] })
@@ -161,7 +179,10 @@ export function StampIconPicker() {
                   aria-label={icon.label}
                   title={icon.label}
                   data-slot="control"
-                  onClick={() => patch({ stampIcon: icon.key, stampIconAssetId: null, stampIconAssetIds: [] })}
+                  onClick={() => {
+                    setNotice(null)
+                    patch({ stampIcon: icon.key, stampIconAssetId: null, stampIconAssetIds: [] })
+                  }}
                   className={cn(
                     'flex aspect-square items-center justify-center rounded-md border transition-colors',
                     selected
@@ -224,7 +245,7 @@ export function StampIconPicker() {
 
         <TabsContent value="upload" className="space-y-3 pt-3">
           {customImages.length > 0 ? (
-            <ol aria-label="Eigene Stempelbilder" className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+            <ol aria-label="Eigene Stempelbilder" className="grid grid-cols-4 gap-2">
               {customImages.map((id, i) => {
                 const url = assetUrls[id] ?? null
                 return (
@@ -232,9 +253,17 @@ export function StampIconPicker() {
                     key={`${id}-${i}`}
                     className="group relative flex flex-col items-center gap-1 rounded-md border border-line bg-surface p-1.5"
                   >
-                    <span className="self-start text-[10.5px] font-medium tabular-nums text-ink-3">
-                      Bild {i + 1}
-                    </span>
+                    <div className="flex w-full items-center justify-between">
+                      <span className="whitespace-nowrap text-[10.5px] font-medium tabular-nums text-ink-3">Bild {i + 1}</span>
+                      <IconButton
+                        label={`Bild ${i + 1} entfernen`}
+                        disabled={busy}
+                        tone="danger"
+                        onClick={() => removeImage(i)}
+                      >
+                        <X className="size-3.5" />
+                      </IconButton>
+                    </div>
                     <div className="flex size-12 items-center justify-center overflow-hidden rounded">
                       {url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -259,15 +288,27 @@ export function StampIconPicker() {
                         >
                           <ArrowRight className="size-3.5" />
                         </IconButton>
-                        <IconButton label={`Bild ${i + 1} entfernen`} disabled={busy} onClick={() => removeImage(i)}>
-                          <X className="size-3.5" />
-                        </IconButton>
                       </div>
                     ) : null}
                   </li>
                 )
               })}
             </ol>
+          ) : null}
+
+          {customImages.length > 1 ? (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => setCustomImages([])}>
+                <Trash2 className="size-3.5" />
+                Alle eigenen Bilder entfernen
+              </Button>
+            </div>
+          ) : null}
+
+          {notice && customImages.length === 0 ? (
+            <p role="status" className="rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-snug text-ink-2">
+              {notice}
+            </p>
           ) : null}
 
           <div className="flex items-center gap-3 rounded-lg border border-dashed border-line bg-surface-2 p-3">
@@ -343,11 +384,13 @@ async function renderEmojiToPng(emoji: string): Promise<Blob | null> {
 function IconButton({
   label,
   disabled,
+  tone = 'neutral',
   onClick,
   children,
 }: {
   label: string
   disabled?: boolean
+  tone?: 'neutral' | 'danger'
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -358,7 +401,10 @@ function IconButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-6 items-center justify-center rounded text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-30"
+      className={cn(
+        'flex size-6 items-center justify-center rounded text-ink-3 transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-30',
+        tone === 'danger' ? 'hover:text-danger' : 'hover:text-ink',
+      )}
     >
       {children}
     </button>
